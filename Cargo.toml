@@ -1,0 +1,9 @@
+[package]
+name = "basic-spellchecker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+memmap2 = "0.9.8"
+rayon = "1.11.0"
+rustc-hash = "2.1.1"
