@@ -1,14 +1,19 @@
 #![warn(dead_code)]
 
-use std::time::Instant;
+mod levenstein_dist;
+use levenstein_dist::levenstein_dist;
+
+use std::time::{Duration, Instant};
 use std::fs;
+
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use memmap2::Mmap;
 
+mod bk_tree;
 
-struct SpellChecker {
-    // string_pool: Vec<String>,
+
+pub struct SpellChecker {
     words: FxHashSet<String>
 }
 
@@ -17,8 +22,8 @@ impl SpellChecker {
         SpellChecker { words: FxHashSet::default() }
     }
 
-    pub fn load_dictionary(&mut self, dict: Vec<String>) {
-        self.words.extend(dict);
+    pub fn load_dictionary(&mut self, dict: &Vec<String>) {
+        self.words.extend(dict.clone());
     }
 
     pub fn check(&self, word: &str) -> bool {
@@ -49,45 +54,26 @@ impl SpellChecker {
             .map(|(dict_word, _)| dict_word)
             .collect()
     }
+
+    pub fn batch_suggest(&self, words: Vec<&str>) -> Vec<Vec<String>> {
+        words
+            .par_iter()
+            .map(|word| self.suggest(word))
+            .collect()
+    }
 }
 
-
-pub fn levenstein_dist(s1: &str, s2: &str) -> usize {
-    let ch1: Vec<char> = s1.chars().collect();
-    let ch2: Vec<char> = s2.chars().collect();
-    let m = ch1.len();
-    let n = ch2.len();
-
-    let mut prev_row: Vec<usize> = (0..=n).collect();
-    let mut cur_row = vec![0; n+1];
-
-    for i in 1..=m {
-        cur_row[0] = i;
-        for j in 1..=n {
-            if ch1[i-1] == ch2[j-1] {
-                cur_row[j] = prev_row[j-1]
-            } else {
-                cur_row[j] = 1 + (cur_row[j-1])
-                    .min(prev_row[j])
-                    .min(prev_row[j-1]);
-            }
-        }
-
-        prev_row = cur_row.clone();
-    };
-
-    cur_row[n]
-}
 
 fn load_words_dict(file: &str) -> Result<Vec<String>, std::io::Error> {
     let file = fs::File::open(file)?;
     let mmap = unsafe { Mmap::map(&file)? };
     let content = std::str::from_utf8(&mmap).unwrap();
-    let words = content
+    let words: Vec<String> = content
         .par_lines()
         .map(|line| line.to_owned())
         .collect();
 
+    println!("Words loaded: {}", words.len());
     Ok(words)
 }
 
@@ -99,7 +85,7 @@ fn main() {
     println!("Dict: {}", words.len());
 
     let mut checker = SpellChecker::new();
-    checker.load_dictionary(words);
+    checker.load_dictionary(&words);
     println!("Load in checker: {:?}", start.elapsed());
 
     println!("{}", checker.check("Hello"));
@@ -107,10 +93,34 @@ fn main() {
     println!("{}", checker.check("Algorithm"));
     println!("Check: {:?}", start.elapsed());
 
-    for _ in 1..21 {
+    let mut total: Duration = Duration::new(0, 0);
+    for _ in 0..5 {
         let start = Instant::now();
         let v = checker.suggest("hell");
-        println!("Suggest took: {:?}", start.elapsed());
         println!("{:?}", v);
+        let v = checker.suggest("beeuty");
+        println!("{:?}", v);
+        let v = checker.suggest("chill");
+        println!("{:?}", v);
+        let v = checker.suggest("fucts");
+        println!("{:?}", v);
+        let v = checker.suggest("chungus");
+        println!("{:?}", v);
+        let v = checker.suggest("mayonese");
+        println!("{:?}", v);
+        total += start.elapsed();
     }
+    println!("Suggest took: {:?}", total / 5);
+    
+    println!();
+    let mut total: Duration = Duration::new(0, 0);
+    for _ in 0..5 {
+        let start = Instant::now();
+        let v = checker.batch_suggest(vec!("hell", "beeuty", "chill", "fucts", "chungus", "mayonese"));
+        println!("{:?}", v);
+        total += start.elapsed();
+    }
+    println!("Batch suggest took: {:?}", total / 5);
+    let mut s = String::new();
+    std::io::stdin().read_line(&mut s).unwrap();
 }
