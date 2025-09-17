@@ -7,6 +7,7 @@ name = "basic-spellchecker"
 version = "0.1.0"
 dependencies = [
  "memmap2",
+ "rapidfuzz",
  "rayon",
  "rustc-hash",
 ]
@@ -56,6 +57,12 @@ checksum = "843a98750cd611cc2965a8213b53b43e715f13c37a9e096c6408e69990961db7"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "rapidfuzz"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "270e04e5ea61d40841942bb15e451c29ee1618637bcf97fc7ede5dd4a9b1601b"
 
 [[package]]
 name = "rayon"
