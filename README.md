@@ -8,7 +8,7 @@ Words spelling check ~700µs
 Sorted suggestions for 24 words against 370000 in ~11-13ms.
 
 # CLI
-spell.exe in %PATH%
+`spell.exe` in %PATH%. `words_alpha.txt` in the same folder.
 
 ```
 > spell funny wrd sjdkfhsdjfh
