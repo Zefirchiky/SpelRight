@@ -72,7 +72,6 @@ mod tests {
         for _ in 0..100 {
             let start = Instant::now();
             let _v = checker.batch_suggest(&benchmark_words);
-            // println!("{:?}", v);
             total += start.elapsed();
         }
         println!("Batch suggest took: {:?}", total / 100);
