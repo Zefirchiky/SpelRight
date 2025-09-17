@@ -10,8 +10,10 @@ Sorted suggestions for 24 words against 370000 in ~11-13ms.
 # CLI
 spell.exe in %PATH%
 
-```> spell funny wrd sjdkfhsdjfh
+```
+> spell funny wrd sjdkfhsdjfh
 Words loaded: 370105
 ✅ funny
 ❓ wrd => wro wry word wad rd wird ord urd ward wd
-❌ Wrong word 'sjdkfhsdjfh', no suggestions```
+❌ Wrong word 'sjdkfhsdjfh', no suggestions
+```
