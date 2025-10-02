@@ -2,135 +2,137 @@
 extern crate test;
 #[cfg(test)]
 mod tests {
-    use basic_spellchecker::old::{SpellChecker, load_words_dict};
+    use basic_spellchecker::{SpellChecker, load_words_dict};
     use test::Bencher;
 
-    static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words_alpha.txt";
+    static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
 
     #[bench]
     fn batch_suggest_6_f_words(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
-    
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
-        let bench_words = vec!("hell", "beeuty", "chill", "fucts", "chungus", "mayonese");
+        let checker = SpellChecker::new(WORDS_FILE);
+        let bench_words = vec!["hell", "beeuty", "chill", "fucts", "chungus", "mayonese"];
         b.iter(|| checker.batch_par_suggest(&bench_words, 10))
     }
-    
+
     #[bench]
     fn batch_suggest_30_correct_words(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
-    
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
+        let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
-            "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "and", 
-            "sees", "nothing", "important", "about", "this", "statement", "programming",
-            "algorithm", "structure", "compiler", "testing", "application", "language",
-            "keyboard", "monitor", "software", "hardware", "network", "database", 
-            "system", "function"
+            "the",
+            "quick",
+            "brown",
+            "fox",
+            "jumps",
+            "over",
+            "lazy",
+            "dog",
+            "and",
+            "sees",
+            "nothing",
+            "important",
+            "about",
+            "this",
+            "statement",
+            "programming",
+            "algorithm",
+            "structure",
+            "compiler",
+            "testing",
+            "application",
+            "language",
+            "keyboard",
+            "monitor",
+            "software",
+            "hardware",
+            "network",
+            "database",
+            "system",
+            "function",
         ];
-        b.iter(|| checker.batch_par_suggest(&bench_words, 10));
+        b.iter(|| checker.batch_suggest(&bench_words, 10));
     }
-    
+
     #[bench]
     fn batch_suggest_30_incorrect_words(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
-    
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
+        let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
-            "teh",      // Transposition (the)
-            "quik",     // Omission (quick)
-            "broown",   // Insertion (brown)
-            "foz",      // Substitution (fox)
-            "jumsp",    // Transposition (jumps)
-            "oevr",     // Transposition (over)
-            "lazey",    // Substitution (lazy)
-            "doog",     // Insertion (dog)
-            "adn",      // Omission (and)
-            "seesd",    // Insertion (sees)
-            "nothng",   // Omission (nothing)
-            "imortant", // Omission (important)
-            "abuot",    // Transposition (about)
-            "tiis",     // Insertion (this)
-            "statemant",// Substitution (statement)
-            "prograaming",// Insertion (programming)
-            "algorthm", // Omission (algorithm)
-            "struckture",// Substitution (structure)
-            "compiller",// Insertion (compiler)
-            "tsting",   // Omission (testing)
-            "applicaion",// Omission (application)
-            "laguage",  // Omission (language)
-            "keybord",  // Omission (keyboard)
-            "monitr",   // Omission (monitor)
-            "sotware",  // Substitution (software)
-            "hardwear", // Substitution (hardware)
-            "netwerk",  // Substitution (network)
-            "databae",  // Omission (database)
-            "sistem",   // Substitution (system)
-            "funciton"  // Transposition (function)
+            "teh",         // Transposition (the)
+            "quik",        // Omission (quick)
+            "broown",      // Insertion (brown)
+            "foz",         // Substitution (fox)
+            "jumsp",       // Transposition (jumps)
+            "oevr",        // Transposition (over)
+            "lazey",       // Substitution (lazy)
+            "doog",        // Insertion (dog)
+            "adn",         // Omission (and)
+            "seesd",       // Insertion (sees)
+            "nothng",      // Omission (nothing)
+            "imortant",    // Omission (important)
+            "abuot",       // Transposition (about)
+            "tiis",        // Insertion (this)
+            "statemant",   // Substitution (statement)
+            "prograaming", // Insertion (programming)
+            "algorthm",    // Omission (algorithm)
+            "struckture",  // Substitution (structure)
+            "compiller",   // Insertion (compiler)
+            "tsting",      // Omission (testing)
+            "applicaion",  // Omission (application)
+            "laguage",     // Omission (language)
+            "keybord",     // Omission (keyboard)
+            "monitr",      // Omission (monitor)
+            "sotware",     // Substitution (software)
+            "hardwear",    // Substitution (hardware)
+            "netwerk",     // Substitution (network)
+            "databae",     // Omission (database)
+            "sistem",      // Substitution (system)
+            "funciton",    // Transposition (function)
         ];
         b.iter(|| checker.batch_par_suggest(&bench_words, 10))
     }
 
     #[bench]
     fn batch_suggest_30_incorrect_words_all_suggestons(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
-    
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
+        let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
-            "teh",      // Transposition (the)
-            "quik",     // Omission (quick)
-            "broown",   // Insertion (brown)
-            "foz",      // Substitution (fox)
-            "jumsp",    // Transposition (jumps)
-            "oevr",     // Transposition (over)
-            "lazey",    // Substitution (lazy)
-            "doog",     // Insertion (dog)
-            "adn",      // Omission (and)
-            "seesd",    // Insertion (sees)
-            "nothng",   // Omission (nothing)
-            "imortant", // Omission (important)
-            "abuot",    // Transposition (about)
-            "tiis",     // Insertion (this)
-            "statemant",// Substitution (statement)
-            "prograaming",// Insertion (programming)
-            "algorthm", // Omission (algorithm)
-            "struckture",// Substitution (structure)
-            "compiller",// Insertion (compiler)
-            "tsting",   // Omission (testing)
-            "applicaion",// Omission (application)
-            "laguage",  // Omission (language)
-            "keybord",  // Omission (keyboard)
-            "monitr",   // Omission (monitor)
-            "sotware",  // Substitution (software)
-            "hardwear", // Substitution (hardware)
-            "netwerk",  // Substitution (network)
-            "databae",  // Omission (database)
-            "sistem",   // Substitution (system)
-            "funciton"  // Transposition (function)
+            "teh",         // Transposition (the)
+            "quik",        // Omission (quick)
+            "broown",      // Insertion (brown)
+            "foz",         // Substitution (fox)
+            "jumsp",       // Transposition (jumps)
+            "oevr",        // Transposition (over)
+            "lazey",       // Substitution (lazy)
+            "doog",        // Insertion (dog)
+            "adn",         // Omission (and)
+            "seesd",       // Insertion (sees)
+            "nothng",      // Omission (nothing)
+            "imortant",    // Omission (important)
+            "abuot",       // Transposition (about)
+            "tiis",        // Insertion (this)
+            "statemant",   // Substitution (statement)
+            "prograaming", // Insertion (programming)
+            "algorthm",    // Omission (algorithm)
+            "struckture",  // Substitution (structure)
+            "compiller",   // Insertion (compiler)
+            "tsting",      // Omission (testing)
+            "applicaion",  // Omission (application)
+            "laguage",     // Omission (language)
+            "keybord",     // Omission (keyboard)
+            "monitr",      // Omission (monitor)
+            "sotware",     // Substitution (software)
+            "hardwear",    // Substitution (hardware)
+            "netwerk",     // Substitution (network)
+            "databae",     // Omission (database)
+            "sistem",      // Substitution (system)
+            "funciton",    // Transposition (function)
         ];
         b.iter(|| checker.batch_par_suggest(&bench_words, 0))
     }
 
     #[bench]
     fn batch_suggestions_24_mix(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
+        let words = load_words_dict(WORDS_FILE).unwrap();
 
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
+        let mut checker = SpellChecker::new(WORDS_FILE);
 
         let bench_words = vec![
             "hello",
@@ -163,18 +165,41 @@ mod tests {
 
     #[bench]
     fn batch_suggestions_30_mix(b: &mut Bencher) {
-        let words =
-            load_words_dict(WORDS_FILE)
-                .unwrap();
+        let words = load_words_dict(WORDS_FILE).unwrap();
 
-        let mut checker = SpellChecker::new();
-        checker.load_dictionary(&words);
+        let mut checker = SpellChecker::new(WORDS_FILE);
 
         let bench_words: [&str; 30] = [
-            "the", "teh", "quick", "quik", "brown", "broown", "fox", "foz", "jumps", 
-            "jumsp", "over", "oevr", "lazy", "lazey", "dog", "doog", "and", "adn", 
-            "sees", "seesd", "nothing", "nothng", "important", "imortant", "about", 
-            "abuot", "this", "tiis", "statement", "statemant"
+            "the",
+            "teh",
+            "quick",
+            "quik",
+            "brown",
+            "broown",
+            "fox",
+            "foz",
+            "jumps",
+            "jumsp",
+            "over",
+            "oevr",
+            "lazy",
+            "lazey",
+            "dog",
+            "doog",
+            "and",
+            "adn",
+            "sees",
+            "seesd",
+            "nothing",
+            "nothng",
+            "important",
+            "imortant",
+            "about",
+            "abuot",
+            "this",
+            "tiis",
+            "statement",
+            "statemant",
         ];
         b.iter(|| checker.batch_par_suggest(&bench_words, 10))
     }

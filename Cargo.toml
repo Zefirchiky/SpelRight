@@ -4,16 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ahash = "0.8.12"
-bloomfilter = "3.0.1"
-fst = "0.4.7"
 indexmap = { version = "2.11.4", features = ["rayon"] }
-memmap2 = "0.9.8"
-rand = "0.9.2"
+ph = { version = "0.10.0", features = ["gxhash"] }
 rapidfuzz = "0.5.0"
 rayon = "1.11.0"
-rustc-hash = "2.1.1"
-string-interner = "0.19.0"
 
 [profile.release]
 panic = "abort"

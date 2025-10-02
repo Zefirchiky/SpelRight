@@ -1,21 +1,28 @@
 use std::env::{self, current_exe};
 use std::iter::zip;
 
-use basic_spellchecker::old::{SpellChecker, load_words_dict};
+use basic_spellchecker::{SpellChecker};
 
 fn main() {
     let path = current_exe().unwrap();
     let path = path.parent().unwrap();
-    let words = load_words_dict(path.join("words_alpha.txt")).unwrap();
+    let path = path.join("words.txt");
 
-    let mut checker = SpellChecker::new();
-    checker.load_dictionary(&words);
+    let checker = SpellChecker::new(path);
 
+    let mut return_elements = 10;
     let args: Vec<String> = env::args().collect();
     let words_to_check = args.get(1..).unwrap();
-    let words_to_check: Vec<&str> = words_to_check.iter().map(|s| s.as_str()).collect();
+    let words_to_check: Vec<&str> = words_to_check.iter().filter_map(|s| {
+        let s = s.as_str();
+        if s == "--full" {
+            return_elements = 0;
+            return None
+        }
+        Some(s)
+    }).collect();
 
-    let suggestions = checker.batch_par_suggest(&words_to_check, 10);
+    let suggestions = checker.batch_par_suggest(&words_to_check, return_elements);
 
     for (word, suggestion) in zip(words_to_check, suggestions) {
         if suggestion.is_empty() {
