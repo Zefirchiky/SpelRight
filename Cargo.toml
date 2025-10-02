@@ -1,11 +1,13 @@
 [package]
-name = "basic-spellchecker"
-version = "0.1.0"
+name = "mangahub-spellchecker"
+description = "A fast and lightweigt spell checker and suggester. Primilary created for a MangaHub project."
+version = "0.1.0-rc1"
 edition = "2024"
+license-file = "LICENSE"
 
 [dependencies]
 indexmap = { version = "2.11.4", features = ["rayon"] }
-ph = { version = "0.10.0", features = ["gxhash"] }
+# ph = { version = "0.10.0", features = ["gxhash"] }
 rapidfuzz = "0.5.0"
 rayon = "1.11.0"
 

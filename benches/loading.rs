@@ -2,7 +2,7 @@
 extern crate test;
 #[cfg(test)]
 mod tests {
-    use basic_spellchecker::{SpellChecker, load_words_dict};
+    use mangahub_spellchecker::{SpellChecker, load_words_dict};
     use test::Bencher;
 
     static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
@@ -14,9 +14,8 @@ mod tests {
 
     #[bench]
     fn words_loading_into_checker(b: &mut Bencher) {
-        let words = load_words_dict(WORDS_FILE).unwrap();
         b.iter(|| {
-            let mut checker = SpellChecker::new(WORDS_FILE);
+            SpellChecker::new(WORDS_FILE);
         })
     }
 }

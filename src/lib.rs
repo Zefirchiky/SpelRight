@@ -15,10 +15,11 @@ pub struct SpellChecker {
 }
 
 impl SpellChecker {
+    /// Creates a new SpellChecker from the given file.
+    ///
+    /// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
+    /// and each group by \n\n. The dataset should also be sorted alphabeticaly.
     pub fn new(file: impl AsRef<Path>) -> Self {
-        // Very precise dataset is needed.
-        // Words sorted by length, where each word is divided by \n and each group by \n\n.
-        // Should also be sorted alphabeticaly.
         let (blob, offsets) = load_words_dict(file).unwrap();
         Self {
             blob,
@@ -36,7 +37,11 @@ impl SpellChecker {
 
     // pub fn batch_check(&self, words: &[&str]) -> 
 
+    /// Finds the word in the dataset if it exists.
+    ///
+    /// Returns the offsets of the word in the blob if it exists, otherwise None.
     pub fn find(&self, word: &str) -> Option<(usize, usize)> {
+        let word = word.to_lowercase();
         let lg = &self.len_offsets.get(word.len() - 1)?;
         if lg.count == 0 {
             return None;
@@ -55,6 +60,13 @@ impl SpellChecker {
         ))
     }
 
+    /// Finds a word in a given slice of bytes using binary search.
+    ///
+    /// The slice should contain words of the same length, sorted alphabetically.
+    ///
+    /// Returns the offsets of the word in the slice if it exists, otherwise None.
+    /// The offsets are given as a tuple of (start, end) where start is the index of the first byte of the word,
+    /// and end is the index of the last byte of the word plus one.
     fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> Option<(usize, usize)> {
         let mut low = 0usize;
         let mut high = slice.len() / word.len();
@@ -99,7 +111,7 @@ impl SpellChecker {
         let first_char = word.bytes().next();
         let last_char = word.bytes().last();
 
-        let bcomp = rapidfuzz::distance::levenshtein::BatchComparator::new(word.chars());
+        let bcomp = rapidfuzz::distance::levenshtein::BatchComparator::new(word.chars());   // TODO: words of the same len can use hamming or other alg
         let mut result: Vec<(&'static str, usize)> = words
             .par_iter()
             .flat_map(|group| {
@@ -179,9 +191,26 @@ impl SpellChecker {
     }
 }
 
+/// Loads a words dictionary from a file into a static string and a vector of length groups.
+///
+/// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
+/// and each group by \n\n. The dataset should also be sorted alphabetically.
+///
+/// Returns a static reference to the loaded blob and a vector of length groups.
+///
+/// Each length group contains the length of the words in that group, the count of the words in that group,
+/// and the offset of the first word of that group in the blob.
+///
+/// The length groups are filled in so that every possible word length from 1 to the maximum length
+/// in the dataset has a corresponding length group. If a word length is missing from the dataset, a placeholder
+/// length group is inserted with a count of 0.
+///
+/// # Errors
+///
+/// This function will return an error if the file cannot be read or if the file is not in the correct format.
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
-) -> Result<(&'static str, Vec<LenGroup>), Box<dyn std::error::Error>> {
+) -> Result<(&'static str, Vec<LenGroup>), Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
     let content = fs::read_to_string(file)?;
     
     // Pre-allocate: estimate based on content size

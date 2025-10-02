@@ -1,7 +1,7 @@
 use std::env::{self, current_exe};
 use std::iter::zip;
 
-use basic_spellchecker::{SpellChecker};
+use mangahub_spellchecker::{SpellChecker};
 
 fn main() {
     let path = current_exe().unwrap();
