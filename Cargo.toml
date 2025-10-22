@@ -6,7 +6,7 @@ edition = "2024"
 license-file = "LICENSE"
 
 [dependencies]
-indexmap = { version = "2.11.4", features = ["rayon"] }
+# indexmap = { version = "2.12", features = ["rayon"] }
 # ph = { version = "0.10.0", features = ["gxhash"] }
 rapidfuzz = "0.5.0"
 rayon = "1.11.0"

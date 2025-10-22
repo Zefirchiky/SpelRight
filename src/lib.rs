@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fs, path::Path, str::from_utf8_unchecked};
+use std::{cmp::Ordering, fs, path::Path, str::{from_utf8_unchecked}, time::{Duration, Instant}};
 
 use rayon::prelude::*;
 
@@ -12,7 +12,36 @@ pub struct LenGroup {
 pub struct SpellChecker {
     blob: String,
     len_offsets: Vec<LenGroup>,
-    max_dif: usize
+    max_dif: usize,
+}
+
+pub enum ComparatorWrapper<'a> {
+    Levenstein(&'a rapidfuzz::distance::levenshtein::BatchComparator<&'a u8>),
+    Indel(&'a rapidfuzz::distance::indel::BatchComparator<&'a u8>),
+    Hamming(&'a rapidfuzz::distance::hamming::BatchComparator<&'a u8>)
+    // O(&'a rapidfuzz::distance::)
+}
+
+impl<'a> ComparatorWrapper<'a> {
+    pub fn distance(&self, word: &[u8]) -> usize {
+        match self {
+            Self::Levenstein(bcomp) => bcomp.distance(word),
+            Self::Indel(bcomp) => bcomp.distance(word),
+            Self::Hamming(bcomp) => bcomp.distance(word).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+struct Stat {
+    word: String,
+    offsets: Vec<u16>,
+    words_checking: u32,
+    words_skipped: u32,
+    suggestions: u32,
+    time_total: Duration,
+    time_checking: Duration,
 }
 
 impl SpellChecker {
@@ -103,6 +132,7 @@ impl SpellChecker {
     /// all suggestions are returned. Otherwise, only the first `take_first_x` suggestions
     /// are returned.
     pub fn suggest(&self, word: &str, take_first_x: usize) -> Vec<&str> {
+        let st = Instant::now();
         let word = word.to_lowercase();
         let word_len = word.len();
 
@@ -110,7 +140,7 @@ impl SpellChecker {
             return vec![&self.blob[offset.0..offset.1]];
         }
 
-        let min_len = word_len.saturating_sub(self.max_dif).max(0);
+        let min_len = word_len.saturating_sub(self.max_dif) - 1;
         let max_len = (word_len + self.max_dif).min(self.len_offsets.len());
         
         let words = &self.len_offsets[min_len..max_len];
@@ -118,10 +148,22 @@ impl SpellChecker {
         let first_char = word.bytes().next();
         let last_char = word.bytes().last();
 
-        let bcomp = rapidfuzz::distance::levenshtein::BatchComparator::new(word.chars());   // TODO: words of the same len can use hamming or other alg
+        let bcomp_ind = rapidfuzz::distance::indel::BatchComparator::new(word.as_bytes());
+        let bcomp_lev = rapidfuzz::distance::levenshtein::BatchComparator::new(word.as_bytes());
+        let bcomp_ham = rapidfuzz::distance::hamming::BatchComparator::new(word.as_bytes());
+
+        let cst = Instant::now();
         let mut result: Vec<(&str, usize)> = words
             .par_iter()
             .flat_map(|group| {
+                let bcomp = if (group.len as isize - word_len as isize).abs() as usize == self.max_dif {
+                    ComparatorWrapper::Indel(&bcomp_ind)
+                } else if group.len as usize == word_len {
+                    ComparatorWrapper::Hamming(&bcomp_ham)
+                } else {
+                    ComparatorWrapper::Levenstein(&bcomp_lev)
+                };
+
                 let text = &self.blob[group.offset as usize
                     ..(group.offset+(group.len as u32*group.count as u32)) as usize];
 
@@ -129,7 +171,7 @@ impl SpellChecker {
                     .as_bytes()
                     .par_chunks(group.len as usize)
                     .filter_map(|ch| {
-                        if (group.len as i32 - word_len as i32).abs() == 2 {
+                        if (group.len as isize - word_len as isize).abs() as usize == self.max_dif {
                             if let (Some(fc), Some(lc)) = (first_char, last_char) {
                                 if !ch.contains(&fc) && !ch.contains(&lc) {
                                     return None;
@@ -137,14 +179,13 @@ impl SpellChecker {
                             }
                         }
                         
-                        // Dataset will always be valid, and chars are based on len group. Cant have invalid utf-8.
-                        // Trust
-                        let word = unsafe {
-                            from_utf8_unchecked(ch)
-                        };
-
-                        let dist = bcomp.distance(word.chars());
+                        let dist = bcomp.distance(ch);
                         if dist <= self.max_dif {
+                            // Dataset will always be valid, and chars are based on len group. Cant have invalid utf-8.
+                            // Trust
+                            let word = unsafe {
+                                from_utf8_unchecked(ch)
+                            };
                             Some((word, dist))
                         } else {
                             None
@@ -153,10 +194,33 @@ impl SpellChecker {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let cst = cst.elapsed();
 
         if result.len() > 1 {
             result.par_sort_unstable_by_key(|(_, dist)| *dist);
         }
+
+        println!("{:#?}", Stat {
+            word: word.into(),
+            offsets: {
+                let mut groups = vec![];
+                for g in words {
+                    groups.push(g.len);
+                }
+                groups
+            },
+            words_checking: {
+                let mut len = 0u32;
+                for g in words {
+                    len += (g.len * g.count) as u32;
+                }
+                len
+            },
+            words_skipped: 0,
+            suggestions: result.len() as u32,
+            time_total: st.elapsed(),
+            time_checking: cst,
+        });
 
         if take_first_x == 0 {
             result.into_iter().map(|(word, _)| word).collect()
@@ -257,7 +321,7 @@ impl SpellChecker {
     ///
     /// If take_first_x is 0, all suggestions are returned.
     /// Otherwise, only the first take_first_x suggestions are returned.
-    pub fn batch_par_suggest_iter<'a>(&self, words: &[&str], take_first_x: usize) -> impl ParallelIterator<Item = Vec<&str>> {
+    pub fn batch_par_suggest_iter(&self, words: &[&str], take_first_x: usize) -> impl ParallelIterator<Item = Vec<&str>> {
         words
             .par_iter()
             .map(move |word| self.suggest(word, take_first_x))
@@ -284,6 +348,7 @@ impl SpellChecker {
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
 ) -> Result<(String, Vec<LenGroup>), Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
+    // About 2 ms
     let content = fs::read_to_string(file)?;
     
     // Pre-allocate: estimate based on content size
