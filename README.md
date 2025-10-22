@@ -1,4 +1,4 @@
-# mangahub-spellchecker
+# MangaHub SpellChecker
 
 A simple spell checker written in rust. Includes CLI and lib.
 
@@ -32,36 +32,36 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 
 ### Hardware
 
-[x] Cache locality (dence blob of words)
+- [x] Cache locality (dence blob of words)
 
-[ ] SIMDeez nuts
-    [x] Distance finding
-    [ ] Binary search (might be optimized by the compiler)
+- [ ] SIMDeez nuts
+  - [x] Distance finding
+  - [ ] Binary search (might be optimized by the compiler)
 
-[ ] Parallelism
-    [ ] Rayon
-        [x] Test with and without
-        [ ] Auto desiding between parallel and normal
-    [ ] Manual
+- [ ] Parallelism
+  - [ ] Rayon
+    - [x] Test with and without
+    - [ ] Auto desiding between parallel and normal
+  - [ ] Manual
 
 ### Memory usage
 
-[x] Blob of words with no other symbold (aka. no `\n`)
+- [x] Blob of words with no other symbold (aka. no `\n`)
 
-[x] Storing minimal offsets
+- [x] Storing minimal offsets
 
 Total memory usage is pretty much minimal.
 
 ### Reduce ammount of words checked
 
-[x] Word length groups (depend on dataset)
+- [x] Word length groups (depend on dataset)
 
-[ ] For length that are max distance from a word (no chars change is allowed, only deletions)
-    [ ] Tracking first letter offsets, use only the once, whose first letter is the same
+- [ ] For length that are max distance from a word (no chars change is allowed, only deletions)
+  - [ ] Tracking first letter offsets, use only the once, whose first letter is the same
 
 ### Caching
 
-[ ] Often mistakes
+- [ ] Often mistakes
 
 ### Loading
 
@@ -70,12 +70,13 @@ Total memory usage is pretty much minimal.
 >
 > **on my machine.**
 
-[ ] Reduce parsing by pre-parsing the dataset, look `Better dataset`
+- [ ] Reduce parsing by pre-parsing the dataset, look `Better dataset`
 
 ### Better dataset
 
-[ ] Reduce words ammount, most words are never used in an average text
+- [ ] Reduce words ammount, most words are never used in an average text
 
-[ ] Store offsets, no unnecessary `\n`
+- [ ] Store offsets, no unnecessary `\n`
+
 > [!NOTE]
 > Will make it harder to work manualy with dataset.
