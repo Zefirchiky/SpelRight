@@ -12,6 +12,9 @@ Words spelling check ~13,000,000 words/s for all incorrect words (worst case sce
 
 Sorted suggestions for 30 incorrect words in ~16-17ms (1600 words/s).
 
+Memory usage is minimal, one big string of all words without a dilimeters + a small vec of information.
+Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
+
 # CLI
 `spell.exe` in %PATH%. `words.txt` in the same folder.
 
