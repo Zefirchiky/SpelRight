@@ -28,6 +28,34 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 ❌ Wrong word 'sjdkfhsdjfh', no suggestions
 ```
 
+## Road Map
+
+- [x] Checking word correctness
+
+- [x] Suggesting similar words
+
+- [ ] Adding new words
+
+- [x] Support different languages
+
+- [ ] Make it fast
+  Suggestions
+  - [x] 100 words/s
+  - [x] 250 words/s
+  - [x] 1000 words/s
+  - [x] 2500 words/s
+  - [ ] 10000 words/s
+  - [ ] 25000 words/s
+  - [ ] 100000 words/s
+
+  Loading
+  - [x] 200 ms
+  - [x] 100 ms
+  - [x] 50 ms
+  - [x] 20 ms
+  - [ ] 5 ms
+  - [ ] 2 ms
+
 ## Possible Optimizations
 
 ### Hardware
@@ -74,7 +102,7 @@ Total memory usage is pretty much minimal.
 
 ### Better dataset
 
-- [ ] Reduce words ammount, most words are never used in an average text
+- [ ] Reduce words amount, most words are never used in an average text
 
 - [ ] Store offsets, no unnecessary `\n`
 
