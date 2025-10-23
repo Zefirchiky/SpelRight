@@ -1,18 +1,20 @@
-# MangaHub SpellChecker
+# MangaHub SpellChecker (Name will be changed)
 
 A simple spell checker written in rust. Includes CLI and lib.
 
 Supports any utf-8, as long as input file is of right format (look SpellChecker::new or load_words_dict).
 
-Was primeraly writen for MangaHub project's Novel ecosistem. And to learn Rust :D
+Was primeraly writen for [https://github.com/Zefirchiky/MangaHub](MangaHub) project's Novel ecosistem. And to learn Rust :D
 
 ## Some benchmarks
 
-Load and parse 4mb file with 370105 words in ~6ms.
+On my i5-12450H laptop with VSC opened.
 
-Words spelling check ~13,000,000 words/s for all incorrect words (worst case scenario).
+Load and parse 4mb file with 370105 words in ~2ms.
 
-Sorted suggestions for 30 incorrect words in ~10ms (3000 words/s).
+Words spelling check ~8,500,000 words/s for all correct words (worst case scenario).
+
+Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s).
 
 Memory usage is minimal, one big string of all words without a dilimeters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
@@ -27,6 +29,46 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 ❓ wrd => wro wry word wad rd wird ord urd ward wd
 ❌ Wrong word 'sjdkfhsdjfh', no suggestions
 ```
+
+## Breakthroughts that lead to this
+
+### Storing blobs of words, and their metadata
+
+Storing words of each length in immutable (optional) blobs, sorted by bytes.
+
+Store info about those blobs: len and/or count.
+
+Cons:
+
+- Incredibly easy to iterate over
+- SIMD compatible
+- Hightly parallelisable
+- Great cache locality (a shit ton of cache hits)
+- Search words with binary search `O(log n)`
+- Working with bytes instead of chars
+  - Support any language
+- Other that I forgor
+
+Pros:
+
+- Needs precise dataset
+- Pretty difficult words addition without moving the whole Vec
+
+Cons totally overwheight the Pros
+
+### Specialized matching algorithm
+
+When iterating over each LenGroup, based on max difference, we can calculate maximum amount of deletions, insertions and changes.
+
+As an example:
+
+Cheking `nothng` (group 6) against group 7, the differens between them is 1 insertion and 1 optional change.
+
+With one insertion, `nothng` will become group 7, and with optional change it can match other words.
+
+There will always be exactly `max_dif` of `max_delete + max_insert + max_change`.
+
+This is multiple times faster then any other distance finding algorithm.
 
 ## Goals
 
@@ -61,7 +103,7 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 
 - [x] Cache locality (dence blob of words)
 - [ ] SIMDeez nuts
-  - [x] Distance finding
+  - [x] Distance matching
   - [ ] Binary search (might be optimized by the compiler)
 - [ ] Parallelism
   - [ ] Rayon
@@ -72,8 +114,9 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 
 ### Memory usage
 
-- [x] Blob of words with no other symbold (aka. no `\n`)
-- [x] Storing minimal offsets
+- [x] Blobs of words with no other symbold (aka. no `\n`)
+- [x] Storing minimal metadata about each word length
+- [ ] Storing first letter offsets, size depends on the language, but minimal overall
 
 Total memory usage is pretty much minimal.
 
@@ -82,7 +125,7 @@ Total memory usage is pretty much minimal.
 - [x] Word length groups (depend on dataset)
 - [ ] For length that are max distance from a word (no chars change is allowed, only deletions)
   - [ ] Tracking first letter offsets, use only the once, whose first letter is the same
-- [ ] For length that are the same as a word's (no chars deletion or insertion, only change)
+- [x] For length that are the same as a word's (no chars deletion or insertion, only change)
 
 ### Caching
 
@@ -104,10 +147,9 @@ Total memory usage is pretty much minimal.
 - [ ] Store first laters offsets
 
 > [!NOTE]
-> Will make it harder to work manualy with dataset.
+> Made it harder to work manualy with dataset.
 
 ### Better algorithms
 
-- [x] Good algorithms for each LenGroup (from rapidfuzz)
-- [ ] Custom
-  - [ ] We know the word len, and currenly processing group's len. By this we can determine amount of deletions, insertions and changes. If done correctly, will be faster then any other algorithm. Example: word: `thks`, current group: 5, max change: 2. So there can only be 1 deletion, and 1 change for a word to be suggestion.
+- [x] Custom
+  - [x] See Breakthrough

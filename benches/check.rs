@@ -8,7 +8,7 @@ mod tests {
     static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
 
     #[bench]
-    #[ignore = "too long"]
+    // #[ignore = "too long"]
     fn iter_100000_correct_words(b: &mut Bencher) {
         let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
@@ -61,8 +61,8 @@ mod tests {
     }
 
     #[bench]
-    #[ignore = "too long"]
-    fn iter_100000_inorrect_words(b: &mut Bencher) {
+    // #[ignore = "too long"]
+    fn iter_100000_incorrect_words(b: &mut Bencher) {
         let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
             "teh",         // Transposition (the)

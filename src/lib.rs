@@ -1,4 +1,5 @@
-use std::{cmp::Ordering, fs, path::Path, str::{from_utf8_unchecked}, time::{Duration, Instant}};
+
+use std::{cmp::Ordering, fs, path::Path, str::from_utf8_unchecked, time::{Duration}};
 
 use rayon::prelude::*;
 
@@ -12,23 +13,6 @@ pub struct LenGroup {
 pub struct SpellChecker {
     len_offsets: Vec<LenGroup>,
     max_dif: usize,
-}
-
-pub enum ComparatorWrapper<'a> {
-    Levenstein(&'a rapidfuzz::distance::levenshtein::BatchComparator<&'a u8>),
-    Indel(&'a rapidfuzz::distance::indel::BatchComparator<&'a u8>),
-    Hamming(&'a rapidfuzz::distance::hamming::BatchComparator<&'a u8>)
-    // O(&'a rapidfuzz::distance::)
-}
-
-impl<'a> ComparatorWrapper<'a> {
-    pub fn distance(&self, word: &[u8]) -> usize {
-        match self {
-            Self::Levenstein(bcomp) => bcomp.distance(word),
-            Self::Indel(bcomp) => bcomp.distance(word),
-            Self::Hamming(bcomp) => bcomp.distance(word).unwrap(),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -110,60 +94,73 @@ impl SpellChecker {
         None
     }
 
-    // #[inline]
-    // fn matches_single(
-    //     word: &[u8],
-    //     candidate: &[u8],
-    //     mut max_deletions: u16,
-    //     mut max_insertions: u16,
-    //     mut max_changes: u16,
-    // ) -> bool {
-    //     let mut wi = 0;
-    //     let mut ci = 0;
+    #[inline]
+    pub fn matches_single(
+        word: &[u8],
+        candidate: &[u8],
+        mut max_deletions: u16,
+        mut max_insertions: u16,
+        mut max_changes: u16,
+    ) -> (bool, u16) {
+        let wlen = word.len();
+        let clen = candidate.len();
         
-    //     while wi < word.len() && ci < candidate.len() {
-    //         if word[wi] == candidate[ci] {
-    //             wi += 1;
-    //             ci += 1;
-    //         } else if max_changes > 0 {
-    //             // Substitution
-    //             max_changes -= 1;
-    //             wi += 1;
-    //             ci += 1;
-    //         } else {
-    //             // No changes left, try deletion or insertion
-    //             if wi + 1 < word.len() && max_deletions > 0 && word[wi + 1] == candidate[ci] {
-    //                 // Deletion: skip byte in word
-    //                 max_deletions -= 1;
-    //                 wi += 1;
-    //             } else if ci + 1 < candidate.len() && max_insertions > 0 && word[wi] == candidate[ci + 1] {
-    //                 // Insertion: skip byte in candidate
-    //                 max_insertions -= 1;
-    //                 ci += 1;
-    //             } else {
-    //                 return false;
-    //             }
-    //         }
-    //     }
+        // Find matching prefix using SIMD
+        let mut wi = 0;
+        let mut ci = 0;
         
-    //     // Handle remaining bytes
-    //     let remaining_word = word.len() - wi;
-    //     let remaining_candidate = candidate.len() - ci;
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx2") {
+                unsafe {
+                    wi = find_matching_prefix_simd_avx2(word, candidate);
+                    ci = wi;
+                }
+            }
+            else if is_x86_feature_detected!("sse2") {
+                unsafe {
+                    wi = find_matching_prefix_simd_sse2(word, candidate);
+                    ci = wi;
+                }
+            }
+        }
         
-    //     if remaining_word == 0 && remaining_candidate == 0 {
-    //         return true;
-    //     }
+        // Continue with scalar algorithm from mismatch point
+        while wi < wlen && ci < clen {
+            if word[wi] == candidate[ci] {
+                wi += 1;
+                ci += 1;
+            }
+            else if max_deletions > 0 && wi + 1 < wlen && word[wi + 1] == candidate[ci] {
+                max_deletions -= 1;
+                wi += 1;
+            }
+            else if max_insertions > 0 && ci + 1 < clen && word[wi] == candidate[ci + 1] {
+                max_insertions -= 1;
+                ci += 1;
+            }
+            else if max_changes > 0 {
+                max_changes -= 1;
+                wi += 1;
+                ci += 1;
+            }
+            else {
+                return (false, 0);
+            }
+        }
         
-    //     if remaining_word == 0 {
-    //         return remaining_candidate as u16 <= max_insertions;
-    //     }
+        let remaining_word = (wlen - wi) as u16;
+        let remaining_candidate = (clen - ci) as u16;
         
-    //     if remaining_candidate == 0 {
-    //         return remaining_word as u16 <= max_deletions;
-    //     }
-        
-    //     false
-    // }
+        if remaining_word <= max_deletions && remaining_candidate <= max_insertions {
+            (
+                true,
+                max_deletions - remaining_word + max_insertions - remaining_candidate + max_changes,
+            )
+        } else {
+            (false, 0)
+        }
+    }
 
     /// Suggest words that are similar to the given word.
     ///
@@ -178,9 +175,9 @@ impl SpellChecker {
     /// all suggestions are returned. Otherwise, only the first `take_first_x` suggestions
     /// are returned.
     pub fn suggest(&self, word: &str, take_first_x: usize) -> Vec<&str> {
-        let st = Instant::now();
         let word = word.to_lowercase();
         let word_len = word.len();
+        let word_bytes = word.as_bytes();
 
         if let Some((lg, offset)) = self.find(&word) {
             return vec![&lg.blob[offset.0..offset.1]];
@@ -189,47 +186,38 @@ impl SpellChecker {
         let min_len = word_len.saturating_sub(self.max_dif) - 1;
         let max_len = (word_len + self.max_dif).min(self.len_offsets.len());
         
+        let first_char = word_bytes[0];
+        let last_char = word_bytes[word_len - 1];
         let words = &self.len_offsets[min_len..max_len];
-
-        let first_char = word.bytes().next();
-        let last_char = word.bytes().last();
-
-        let bcomp_ind = rapidfuzz::distance::indel::BatchComparator::new(word.as_bytes());
-        let bcomp_lev = rapidfuzz::distance::levenshtein::BatchComparator::new(word.as_bytes());
-        let bcomp_ham = rapidfuzz::distance::hamming::BatchComparator::new(word.as_bytes());
-
-        let cst = Instant::now();
         let mut result: Vec<(&str, usize)> = words
             .par_iter()
+            .filter(|group| group.count > 0)
             .flat_map(|group| {
-                let bcomp = if (group.len as isize - word_len as isize).abs() as usize == self.max_dif {
-                    ComparatorWrapper::Indel(&bcomp_ind)
-                } else if group.len as usize == word_len {
-                    ComparatorWrapper::Hamming(&bcomp_ham)
-                } else {
-                    ComparatorWrapper::Levenstein(&bcomp_lev)
-                };
+                let dif = group.len as isize - word_len as isize;
+                let abs_dif = dif.abs() as usize;
+
+                let max_del = dif.max(0) as u16;
+                let max_ins = (-dif).max(0) as u16;
+                let max_chg = (self.max_dif - abs_dif) as u16;
 
                 group.blob
                     .as_bytes()
                     .par_chunks(group.len as usize)
                     .filter_map(|ch| {
-                        if (group.len as isize - word_len as isize).abs() as usize == self.max_dif {
-                            if let (Some(fc), Some(lc)) = (first_char, last_char) {
-                                if !ch.contains(&fc) && !ch.contains(&lc) {
-                                    return None;
-                                }
+                        if abs_dif == self.max_dif {
+                            if ch[0] != first_char && ch[0] != last_char &&
+                            ch[ch.len()-1] != first_char && ch[ch.len()-1] != last_char {
+                                return None;
                             }
                         }
                         
-                        let dist = bcomp.distance(ch);
-                        if dist <= self.max_dif {
+                        let (is_ok, dist) = Self::matches_single(
+                            ch, word_bytes, max_del, max_ins, max_chg
+                        );
+                        if is_ok {
                             // Dataset will always be valid, and chars are based on len group. Cant have invalid utf-8.
                             // Trust
-                            let word = unsafe {
-                                from_utf8_unchecked(ch)
-                            };
-                            Some((word, dist))
+                            Some((unsafe { from_utf8_unchecked(ch) }, dist as usize))
                         } else {
                             None
                         }
@@ -237,33 +225,10 @@ impl SpellChecker {
                     .collect::<Vec<_>>()
             })
             .collect();
-        let cst = cst.elapsed();
 
         if result.len() > 1 {
             result.par_sort_unstable_by_key(|(_, dist)| *dist);
         }
-
-        println!("{:#?}", Stat {
-            word: word.into(),
-            offsets: {
-                let mut groups = vec![];
-                for g in words {
-                    groups.push(g.len);
-                }
-                groups
-            },
-            words_checking: {
-                let mut len = 0u32;
-                for g in words {
-                    len += (g.len * g.count) as u32;
-                }
-                len
-            },
-            words_skipped: 0,
-            suggestions: result.len() as u32,
-            time_total: st.elapsed(),
-            time_checking: cst,
-        });
 
         if take_first_x == 0 {
             result.into_iter().map(|(word, _)| word).collect()
@@ -430,4 +395,82 @@ pub fn load_words_dict<T: AsRef<Path>>(
     }
     
     Ok(result)
+}
+
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse2")]
+unsafe fn find_matching_prefix_simd_sse2(word: &[u8], candidate: &[u8]) -> usize {
+    use std::arch::x86_64::*;
+    
+    let min_len = word.len().min(candidate.len());
+    
+    // Process 16 bytes at a time with SSE2
+    let chunks = min_len / 16;
+    let mut i = 0;
+    
+    for chunk in 0..chunks {
+        let offset = chunk * 16;
+        
+        // Load 16 bytes from each string
+        let w = unsafe { _mm_loadu_si128(word.as_ptr().add(offset) as *const __m128i) };
+        let c = unsafe { _mm_loadu_si128(candidate.as_ptr().add(offset) as *const __m128i) };
+        
+        // Compare for equality
+        let cmp = _mm_cmpeq_epi8(w, c);
+        
+        // Convert comparison result to bitmask
+        let mask = _mm_movemask_epi8(cmp) as u32;
+        
+        // If all 16 bytes match, mask will be 0xFFFF (all bits set)
+        if mask != 0xFFFF {
+            // Find first mismatch position using trailing ones
+            i = offset + mask.trailing_ones() as usize;
+            return i;
+        }
+        
+        i = offset + 16;
+    }
+    
+    // Handle remaining bytes with scalar comparison
+    while i < min_len && word[i] == candidate[i] {
+        i += 1;
+    }
+    
+    i
+}
+
+// AVX2 version for even better performance (32 bytes at once)
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn find_matching_prefix_simd_avx2(word: &[u8], candidate: &[u8]) -> usize {
+    use std::arch::x86_64::*;
+    
+    let min_len = word.len().min(candidate.len());
+    let chunks = min_len / 32;
+    let mut i = 0;
+    
+    for chunk in 0..chunks {
+        let offset = chunk * 32;
+        
+        let w = unsafe { _mm256_loadu_si256(word.as_ptr().add(offset) as *const __m256i) };
+        let c = unsafe { _mm256_loadu_si256(candidate.as_ptr().add(offset) as *const __m256i) };
+        
+        let cmp = _mm256_cmpeq_epi8(w, c);
+        let mask = _mm256_movemask_epi8(cmp);
+        
+        if mask != -1 {  // -1 = 0xFFFFFFFF (all 32 bits set)
+            i = offset + mask.trailing_ones() as usize;
+            return i;
+        }
+        
+        i = offset + 32;
+    }
+    
+    // Handle remaining bytes
+    while i < min_len && word[i] == candidate[i] {
+        i += 1;
+    }
+    
+    i
 }
