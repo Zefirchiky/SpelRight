@@ -4,7 +4,7 @@ A simple spell checker written in rust. Includes CLI and lib.
 
 Supports any utf-8, as long as input file is of right format (look SpellChecker::new or load_words_dict).
 
-Was primeraly writen for [https://github.com/Zefirchiky/MangaHub](MangaHub) project's Novel ecosistem. And to learn Rust :D
+Was primeraly writen for [MangaHub](https://github.com/Zefirchiky/MangaHub) project's Novel ecosistem. And to learn Rust :D
 
 ## Some benchmarks
 
