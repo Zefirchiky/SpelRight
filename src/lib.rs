@@ -1,7 +1,13 @@
 
-use std::{cmp::Ordering, fs, path::Path, str::from_utf8_unchecked, time::{Duration}};
+use std::{cmp::Ordering, path::Path, str::from_utf8_unchecked};
 
 use rayon::prelude::*;
+
+mod load_dict;
+mod simd_find_matching_prefix;
+
+pub use load_dict::load_words_dict;
+use simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matching_prefix_simd_sse2};
 
 #[derive(Debug, Clone)]
 pub struct LenGroup {
@@ -11,20 +17,8 @@ pub struct LenGroup {
 }
 
 pub struct SpellChecker {
-    len_offsets: Vec<LenGroup>,
+    len_groups: Vec<LenGroup>,
     max_dif: usize,
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-struct Stat {
-    word: String,
-    offsets: Vec<u16>,
-    words_checking: u32,
-    words_skipped: u32,
-    suggestions: u32,
-    time_total: Duration,
-    time_checking: Duration,
 }
 
 impl SpellChecker {
@@ -33,34 +27,38 @@ impl SpellChecker {
     /// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
     /// and each group by \n\n. The dataset should also be sorted alphabeticaly.
     pub fn new(file: impl AsRef<Path>) -> Self {
-        let offsets = load_words_dict(file).unwrap();
+        let len_groups = load_words_dict(file).unwrap();
         Self {
-            len_offsets: offsets,
+            len_groups,
             max_dif: 2,
         }
     }
 
+    /// Sets the maximum difference between words to be considered similar.
+    ///
+    /// This value is used in the suggest method to determine how many words to suggest.
+    ///
+    /// A value of 0 means that only exact matches are considered similar, while a value of 1 means that words that are one insertion, deletion, or substitution away are also considered similar.
+    ///
+    /// A value of 2 (the default) means that words that are up to two insertions, deletions, or substitutions away are also considered similar.
     pub fn set_max_dif(&mut self, max_dif: usize) -> &mut Self {
         self.max_dif = max_dif;
         self
     }
 
-    // pub fn add(&mut self, word: String) {
-    //     self.words.insert(Box::leak(Box::new(word)));
-    // }
-
+    /// Checks if a word exists in the dataset.
+    ///
+    /// Returns true if the word exists, false otherwise.
     pub fn check(&self, word: &str) -> bool {
         self.find(word).is_some()
     }
-
-    // pub fn batch_check(&self, words: &[&str]) -> 
 
     /// Finds the word in the dataset if it exists.
     ///
     /// Returns the LenGroup, start and end offsets of the word in the group if it exists, otherwise None.
     pub fn find(&self, word: &str) -> Option<(&LenGroup, (usize, usize))> {
         let word = word.to_lowercase();
-        let lg = &self.len_offsets.get(word.len() - 1)?;
+        let lg = &self.len_groups.get(word.len() - 1)?;
         if lg.count == 0 {
             return None;
         }
@@ -94,6 +92,16 @@ impl SpellChecker {
         None
     }
 
+    /// Checks if a word matches a given candidate with at most the given maximum amount of deletions, insertions and changes.
+    ///
+    /// Returns a tuple of (bool, u16) where the boolean is true if the word matches the candidate, and the u16 is the total number of operations done to match the two words.
+    ///
+    /// The algorithm first finds the matching prefix of the two words using SIMD if available, and then continues with a scalar algorithm from the mismatch point.
+    ///
+    /// The maximum amount of deletions, insertions and changes are given as mutable parameters, and are decreased by one each time an operation is done.
+    ///
+    /// If the word matches the candidate with at most the given maximum amount of operations, the function returns true and the total number of operations done.
+    /// Otherwise, it returns false and 0.
     #[inline]
     pub fn matches_single(
         word: &[u8],
@@ -184,11 +192,11 @@ impl SpellChecker {
         }
         
         let min_len = word_len.saturating_sub(self.max_dif) - 1;
-        let max_len = (word_len + self.max_dif).min(self.len_offsets.len());
+        let max_len = (word_len + self.max_dif).min(self.len_groups.len());
         
         let first_char = word_bytes[0];
         let last_char = word_bytes[word_len - 1];
-        let words = &self.len_offsets[min_len..max_len];
+        let words = &self.len_groups[min_len..max_len];
         let mut result: Vec<(&str, usize)> = words
             .par_iter()
             .filter(|group| group.count > 0)
@@ -228,6 +236,7 @@ impl SpellChecker {
 
         if result.len() > 1 {
             result.par_sort_unstable_by_key(|(_, dist)| *dist);
+            result.reverse();
         }
 
         if take_first_x == 0 {
@@ -334,143 +343,4 @@ impl SpellChecker {
             .par_iter()
             .map(move |word| self.suggest(word, take_first_x))
     }
-}
-
-/// Loads a words dictionary from a file into a static string and a vector of length groups.
-///
-/// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
-/// and each group by \n\n. The dataset should also be sorted alphabetically.
-///
-/// Returns a static reference to the loaded blob and a vector of length groups.
-///
-/// Each length group contains the length of the words in that group, the count of the words in that group,
-/// and the offset of the first word of that group in the blob.
-///
-/// The length groups are filled in so that every possible word length from 1 to the maximum length
-/// in the dataset has a corresponding length group. If a word length is missing from the dataset, a placeholder
-/// length group is inserted with a count of 0.
-///
-/// # Errors
-///
-/// This function will return an error if the file cannot be read or if the file is not in the correct format.
-pub fn load_words_dict<T: AsRef<Path>>(
-    file: T,
-) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
-    // About 2 ms
-    let content = fs::read_to_string(file)?;
-    
-    let lines: Vec<&str> = content.lines().collect();
-
-    if lines.is_empty() {
-        return Ok(vec![]);
-    }
-
-    // Find max length from the last length line (every other line, starting at 0)
-    let max_len = lines
-        .iter()
-        .step_by(2)
-        .last()
-        .and_then(|line| line.trim().parse::<u16>().ok())
-        .unwrap_or(0);
-
-    let mut group_map: Vec<Option<(String, u16)>> = vec![None; max_len as usize];
-
-    for i in (0..lines.len()).step_by(2) {
-        if let Ok(word_len) = lines[i].trim().parse::<u16>() {
-            if word_len > 0 && (word_len as usize) <= max_len as usize {
-                if let Some(blob_line) = lines.get(i + 1) {
-                    let blob = blob_line.trim().to_string();
-                    let count = (blob.len() / word_len as usize) as u16;
-                    group_map[(word_len as usize) - 1] = Some((blob, count));
-                }
-            }
-        }
-    }
-
-    let mut result = Vec::with_capacity(max_len as usize);
-    for (idx, entry) in group_map.into_iter().enumerate() {
-        let len = (idx + 1) as u16;
-        let (blob, count) = entry.unwrap_or_else(|| (String::new(), 0));
-        result.push(LenGroup { blob, len, count });
-    }
-    
-    Ok(result)
-}
-
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "sse2")]
-unsafe fn find_matching_prefix_simd_sse2(word: &[u8], candidate: &[u8]) -> usize {
-    use std::arch::x86_64::*;
-    
-    let min_len = word.len().min(candidate.len());
-    
-    // Process 16 bytes at a time with SSE2
-    let chunks = min_len / 16;
-    let mut i = 0;
-    
-    for chunk in 0..chunks {
-        let offset = chunk * 16;
-        
-        // Load 16 bytes from each string
-        let w = unsafe { _mm_loadu_si128(word.as_ptr().add(offset) as *const __m128i) };
-        let c = unsafe { _mm_loadu_si128(candidate.as_ptr().add(offset) as *const __m128i) };
-        
-        // Compare for equality
-        let cmp = _mm_cmpeq_epi8(w, c);
-        
-        // Convert comparison result to bitmask
-        let mask = _mm_movemask_epi8(cmp) as u32;
-        
-        // If all 16 bytes match, mask will be 0xFFFF (all bits set)
-        if mask != 0xFFFF {
-            // Find first mismatch position using trailing ones
-            i = offset + mask.trailing_ones() as usize;
-            return i;
-        }
-        
-        i = offset + 16;
-    }
-    
-    // Handle remaining bytes with scalar comparison
-    while i < min_len && word[i] == candidate[i] {
-        i += 1;
-    }
-    
-    i
-}
-
-// AVX2 version for even better performance (32 bytes at once)
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn find_matching_prefix_simd_avx2(word: &[u8], candidate: &[u8]) -> usize {
-    use std::arch::x86_64::*;
-    
-    let min_len = word.len().min(candidate.len());
-    let chunks = min_len / 32;
-    let mut i = 0;
-    
-    for chunk in 0..chunks {
-        let offset = chunk * 32;
-        
-        let w = unsafe { _mm256_loadu_si256(word.as_ptr().add(offset) as *const __m256i) };
-        let c = unsafe { _mm256_loadu_si256(candidate.as_ptr().add(offset) as *const __m256i) };
-        
-        let cmp = _mm256_cmpeq_epi8(w, c);
-        let mask = _mm256_movemask_epi8(cmp);
-        
-        if mask != -1 {  // -1 = 0xFFFFFFFF (all 32 bits set)
-            i = offset + mask.trailing_ones() as usize;
-            return i;
-        }
-        
-        i = offset + 32;
-    }
-    
-    // Handle remaining bytes
-    while i < min_len && word[i] == candidate[i] {
-        i += 1;
-    }
-    
-    i
 }
