@@ -24,7 +24,7 @@ fn main() {
 
     let suggestions = checker.batch_par_suggest(&words_to_check, return_elements);
 
-    for (word, suggestion) in zip(words_to_check, suggestions) {
+    for (word, suggestion) in suggestions {
         if suggestion.is_empty() {
             println!("❌ Wrong word '{word}', no suggestions")
         } else if suggestion.len() == 1 {

@@ -1,10 +1,10 @@
 # MangaHub SpellChecker (Name will be changed)
 
-A simple spell checker written in rust. Includes CLI and lib.
+A simple spell checker written in Rust. Includes CLI and lib.
 
-Supports any utf-8, as long as input file is of right format (look SpellChecker::new or load_words_dict).
+Supports any utf-8, as long as input file is of right format (look [Dataset Fixer](https://github.com/Zefirchiky/easy-spell-checker/tree/ca505359efdc0a862d3418ae3c8b9f0418a9f25e/dataset_fixer) or load_words_dict).
 
-Was primeraly writen for [MangaHub](https://github.com/Zefirchiky/MangaHub) project's Novel ecosistem. And to learn Rust :D
+Was primirely written for [MangaHub](https://github.com/Zefirchiky/MangaHub) project's Novel ecosistem. And to learn Rust :D
 
 ## Some benchmarks
 
@@ -12,11 +12,11 @@ On my i5-12450H laptop with VSC opened.
 
 Load and parse 4mb file with 370105 words in ~2ms.
 
-Words spelling check ~8,500,000 words/s for all correct words (worst case scenario).
+Words spelling check ~45,000,000 words/s for all correct words (worst case scenario, batch_par_check).
 
-Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s).
+Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s, batch_par_suggest).
 
-Memory usage is minimal, one big string of all words without a dilimeters + a small vec of information.
+Memory usage is minimal, one big string of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
 
 ## CLI
@@ -30,7 +30,7 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 ❌ Wrong word 'sjdkfhsdjfh', no suggestions
 ```
 
-## Breakthroughts that lead to this
+## Breakthroughs that lead to this
 
 ### Storing blobs of words, and their metadata
 
@@ -42,7 +42,7 @@ Pros:
 
 - Incredibly easy to iterate over
 - SIMD compatible
-- Hightly parallelisable
+- Hightly parallelizable
 - Great cache locality (a shit ton of cache hits)
 - Search words with binary search `O(log n)`
 - Working with bytes instead of chars
@@ -62,7 +62,7 @@ When iterating over each LenGroup, based on max difference, we can calculate max
 
 As an example:
 
-Cheking `nothng` (group 6) against group 7, the differens between them is 1 insertion and 1 optional change.
+Cheking `nothng` (group 6) against group 7, the differens between them is 1 insertion and 1 (optional) change.
 
 With one insertion, `nothng` will become group 7, and with optional change it can match other words.
 
@@ -77,6 +77,9 @@ This is multiple times faster then any other distance finding algorithm.
 - [ ] Adding new words
 - [x] Support different languages
 - [ ] Make it fast
+- [ ] Make good CLI
+  - [ ] Long runing Server
+  - [ ] Config
 
   Suggestions
   - [x] 100 words/s

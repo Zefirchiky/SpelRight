@@ -93,7 +93,8 @@ mod tests {
     #[bench]
     // #[ignore = "too long"]
     fn batch_suggest_1000_incorrect_words_all_suggestons(b: &mut Bencher) {
-        let checker = SpellChecker::new(WORDS_FILE);
+        let mut checker = SpellChecker::new(WORDS_FILE);
+        checker.set_max_dif(4);
         let bench_words: [&str; 30] = [
             "teh",         // Transposition (the)
             "quik",        // Omission (quick)

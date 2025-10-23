@@ -1,27 +1,20 @@
 use std::{path::Path, fs};
 use crate::LenGroup;
 
-/// Loads a words dictionary from a file into a static string and a vector of length groups.
+/// Loads a words dictionary from a given file.
 ///
-/// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
-/// and each group by \n\n. The dataset should also be sorted alphabetically.
+/// The file should be formatted as follows:
 ///
-/// Returns a static reference to the loaded blob and a vector of length groups.
+/// 1. Every other line, starting at `0`, should contain a `length` of `words` in the next line.
+/// 2. Every other line, starting at `1`, should contain the `words` of the given `length`, concatenated together.
 ///
-/// Each length group contains the length of the words in that group, the count of the words in that group,
-/// and the offset of the first word of that group in the blob.
+/// The function returns a vector of `LenGroup`, which contains the `blob of words` of the given `length`, the `length` of the words, and the `count` of words in the blob.
 ///
-/// The length groups are filled in so that every possible word length from 1 to the maximum length
-/// in the dataset has a corresponding length group. If a word length is missing from the dataset, a placeholder
-/// length group is inserted with a count of 0.
-///
-/// # Errors
-///
-/// This function will return an error if the file cannot be read or if the file is not in the correct format.
+/// This function is io bound, and will take up to `4ms` on a low end hardware.
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
-) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
-    // About 2 ms
+) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {
+    // About 2ms
     let content = fs::read_to_string(file)?;
     
     let lines: Vec<&str> = content.lines().collect();

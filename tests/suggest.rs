@@ -5,6 +5,12 @@ mod suggest_tests {
     static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
 
     #[test]
+    fn suggest_correctness() {
+        let checker = SpellChecker::new(WORDS_FILE);
+        assert_eq!(checker.suggest("diferently", 0), vec!["differently", "divergently", "referently", "efferently", "afferently"]);
+    }
+
+    #[test]
     fn batch_suggest_30_incorrect_words() {
         let checker = SpellChecker::new(WORDS_FILE);
         let bench_words: [&str; 30] = [
