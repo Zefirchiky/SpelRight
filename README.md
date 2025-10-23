@@ -12,11 +12,11 @@ On my i5-12450H laptop with VSC opened.
 
 Load and parse 4mb file with 370105 words in ~2ms.
 
-Words spelling check ~45,000,000 words/s for all correct words (worst case scenario, batch_par_check).
+Words spelling check ~45,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
 
-Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s, batch_par_suggest).
+Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s, `batch_par_suggest`).
 
-Memory usage is minimal, one big string of all words without a delimiters + a small vec of information.
+Memory usage is minimal, a few big strings of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
 
 ## CLI
@@ -58,17 +58,17 @@ Pros totally outwheight the Cons!
 
 ### Specialized matching algorithm
 
-When iterating over each LenGroup, based on max difference, we can calculate maximum amount of deletions, insertions and changes.
+When iterating over each `LenGroup`, based on `max difference`, we can calculate maximum amount of `deletions`, `insertions` and `substitutions`.
 
 As an example:
 
-Cheking `nothng` (group 6) against group 7, the differens between them is 1 insertion and 1 (optional) change.
+Cheking `nothng` (group 6) against group 7, the differens between them is 1 `insertion` and 1 (optional) `substitution`.
 
-With one insertion, `nothng` will become group 7, and with optional change it can match other words.
+With one insertion, `nothng` will become group 7, and with optional `substitution` it can match other words.
 
-There will always be exactly `max_dif` of `max_delete + max_insert + max_change`.
+There will always be exactly `max_dif` of `max_delete + max_insert + max_substitution`.
 
-This is multiple times faster then any other distance finding algorithm.
+This is **multiple times** faster then any other distance finding algorithm.
 
 ## Goals
 
@@ -81,7 +81,7 @@ This is multiple times faster then any other distance finding algorithm.
   - [ ] Long runing Server
   - [ ] Config
 
-  Suggestions
+  Suggestions (9000 words/s)
   - [x] 100 words/s
   - [x] 250 words/s
   - [x] 1000 words/s
@@ -90,7 +90,7 @@ This is multiple times faster then any other distance finding algorithm.
   - [ ] 25000 words/s
   - [ ] 100000 words/s
 
-  Loading
+  Loading (2.2 ms)
   - [x] <200 ms
   - [x] <100 ms
   - [x] <50 ms

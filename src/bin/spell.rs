@@ -1,5 +1,4 @@
 use std::env::{self, current_exe};
-use std::iter::zip;
 
 use mangahub_spellchecker::{SpellChecker};
 
