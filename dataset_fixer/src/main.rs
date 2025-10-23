@@ -25,12 +25,15 @@ fn main() {
         let current_len = word.len();
         
         // If the length changes AND it's not the very first word
-        if current_len != previous_len && previous_len != 0 {
+        if current_len != previous_len {
+            if previous_len != 0 {
+                formatted_output.push_str("\n");
+            }
+            formatted_output.push_str(&current_len.to_string());
             formatted_output.push_str("\n");
         }
         
         formatted_output.push_str(&word);
-        formatted_output.push('\n'); // Insert single newline after the word
         
         previous_len = current_len;
     }

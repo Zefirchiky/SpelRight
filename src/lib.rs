@@ -4,13 +4,12 @@ use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct LenGroup {
-    offset: u32,
+    blob: String,
     len: u16,
     count: u16,
 }
 
 pub struct SpellChecker {
-    blob: String,
     len_offsets: Vec<LenGroup>,
     max_dif: usize,
 }
@@ -50,9 +49,8 @@ impl SpellChecker {
     /// The file should contain a dataset of words, sorted by their byte length, where each word is divided by \n
     /// and each group by \n\n. The dataset should also be sorted alphabeticaly.
     pub fn new(file: impl AsRef<Path>) -> Self {
-        let (blob, offsets) = load_words_dict(file).unwrap();
+        let offsets = load_words_dict(file).unwrap();
         Self {
-            blob,
             len_offsets: offsets,
             max_dif: 2,
         }
@@ -75,25 +73,18 @@ impl SpellChecker {
 
     /// Finds the word in the dataset if it exists.
     ///
-    /// Returns the offsets of the word in the blob if it exists, otherwise None.
-    pub fn find(&self, word: &str) -> Option<(usize, usize)> {
+    /// Returns the LenGroup, start and end offsets of the word in the group if it exists, otherwise None.
+    pub fn find(&self, word: &str) -> Option<(&LenGroup, (usize, usize))> {
         let word = word.to_lowercase();
         let lg = &self.len_offsets.get(word.len() - 1)?;
         if lg.count == 0 {
             return None;
         }
-        let len = lg.len as usize;
-        let count = lg.count as usize;
-        let start = lg.offset as usize;
-        let end = start + len * count;
 
         let word = word.as_bytes();
-        let blob = &self.blob.as_bytes()[start..end];
+        let blob = lg.blob.as_bytes();
         let offsets = Self::find_word_in_slice_binary_search(word, blob)?;
-        Some((
-            lg.offset as usize + offsets.0,
-            lg.offset as usize + offsets.1,
-        ))
+        Some((lg, offsets))
     }
 
     /// Finds a word in a given slice of bytes using binary search.
@@ -119,6 +110,61 @@ impl SpellChecker {
         None
     }
 
+    // #[inline]
+    // fn matches_single(
+    //     word: &[u8],
+    //     candidate: &[u8],
+    //     mut max_deletions: u16,
+    //     mut max_insertions: u16,
+    //     mut max_changes: u16,
+    // ) -> bool {
+    //     let mut wi = 0;
+    //     let mut ci = 0;
+        
+    //     while wi < word.len() && ci < candidate.len() {
+    //         if word[wi] == candidate[ci] {
+    //             wi += 1;
+    //             ci += 1;
+    //         } else if max_changes > 0 {
+    //             // Substitution
+    //             max_changes -= 1;
+    //             wi += 1;
+    //             ci += 1;
+    //         } else {
+    //             // No changes left, try deletion or insertion
+    //             if wi + 1 < word.len() && max_deletions > 0 && word[wi + 1] == candidate[ci] {
+    //                 // Deletion: skip byte in word
+    //                 max_deletions -= 1;
+    //                 wi += 1;
+    //             } else if ci + 1 < candidate.len() && max_insertions > 0 && word[wi] == candidate[ci + 1] {
+    //                 // Insertion: skip byte in candidate
+    //                 max_insertions -= 1;
+    //                 ci += 1;
+    //             } else {
+    //                 return false;
+    //             }
+    //         }
+    //     }
+        
+    //     // Handle remaining bytes
+    //     let remaining_word = word.len() - wi;
+    //     let remaining_candidate = candidate.len() - ci;
+        
+    //     if remaining_word == 0 && remaining_candidate == 0 {
+    //         return true;
+    //     }
+        
+    //     if remaining_word == 0 {
+    //         return remaining_candidate as u16 <= max_insertions;
+    //     }
+        
+    //     if remaining_candidate == 0 {
+    //         return remaining_word as u16 <= max_deletions;
+    //     }
+        
+    //     false
+    // }
+
     /// Suggest words that are similar to the given word.
     ///
     /// # Args
@@ -136,10 +182,10 @@ impl SpellChecker {
         let word = word.to_lowercase();
         let word_len = word.len();
 
-        if let Some(offset) = self.find(&word) {
-            return vec![&self.blob[offset.0..offset.1]];
+        if let Some((lg, offset)) = self.find(&word) {
+            return vec![&lg.blob[offset.0..offset.1]];
         }
-
+        
         let min_len = word_len.saturating_sub(self.max_dif) - 1;
         let max_len = (word_len + self.max_dif).min(self.len_offsets.len());
         
@@ -164,10 +210,7 @@ impl SpellChecker {
                     ComparatorWrapper::Levenstein(&bcomp_lev)
                 };
 
-                let text = &self.blob[group.offset as usize
-                    ..(group.offset+(group.len as u32*group.count as u32)) as usize];
-
-                text
+                group.blob
                     .as_bytes()
                     .par_chunks(group.len as usize)
                     .filter_map(|ch| {
@@ -347,78 +390,44 @@ impl SpellChecker {
 /// This function will return an error if the file cannot be read or if the file is not in the correct format.
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
-) -> Result<(String, Vec<LenGroup>), Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
+) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {    // TODO: Still pretty slow, may be can be improved.
     // About 2 ms
     let content = fs::read_to_string(file)?;
     
-    // Pre-allocate: estimate based on content size
-    let estimated_capacity = content.len();
-    let mut blob = String::with_capacity(estimated_capacity);
-    let mut offsets = Vec::with_capacity(64); // Most words are < 64 chars
-    
-    let mut current_offset = 0u32;
-    let mut current_len = 0u16;
-    let mut current_count = 0u16;
-    let mut last_len = 0;
-    
-    for line in content.lines() {
-        if line.is_empty() {
-            // End of length group
-            if current_count > 0 {
-                offsets.push(LenGroup {
-                    len: current_len,
-                    count: current_count,
-                    offset: current_offset,
-                });
-                current_offset += current_len as u32 * current_count as u32;
-                current_count = 0;
+    let lines: Vec<&str> = content.lines().collect();
+
+    if lines.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Find max length from the last length line (every other line, starting at 0)
+    let max_len = lines
+        .iter()
+        .step_by(2)
+        .last()
+        .and_then(|line| line.trim().parse::<u16>().ok())
+        .unwrap_or(0);
+
+    let mut group_map: Vec<Option<(String, u16)>> = vec![None; max_len as usize];
+
+    for i in (0..lines.len()).step_by(2) {
+        if let Ok(word_len) = lines[i].trim().parse::<u16>() {
+            if word_len > 0 && (word_len as usize) <= max_len as usize {
+                if let Some(blob_line) = lines.get(i + 1) {
+                    let blob = blob_line.trim().to_string();
+                    let count = (blob.len() / word_len as usize) as u16;
+                    group_map[(word_len as usize) - 1] = Some((blob, count));
+                }
             }
-            continue;
-        }
-        
-        let word_len = line.len() as u16;
-        last_len = word_len as usize;
-        
-        if current_count == 0 {
-            // Start new group
-            current_len = word_len;
-        }
-        
-        blob.push_str(line);
-        current_count += 1;
-    }
-    
-    // Don't forget the last group
-    if current_count > 0 {
-        offsets.push(LenGroup {
-            len: current_len,
-            count: current_count,
-            offset: current_offset,
-        });
-    }
-    
-    // Fill in missing length entries
-    let mut filled_offsets = Vec::with_capacity(last_len);
-    let mut offset_idx = 0;
-    
-    for target_len in 1..=last_len {
-        if offset_idx < offsets.len() && offsets[offset_idx].len == target_len as u16 {
-            filled_offsets.push(offsets[offset_idx].clone());
-            offset_idx += 1;
-        } else {
-            // Insert placeholder for missing length
-            let prev_offset = if filled_offsets.is_empty() {
-                0
-            } else {
-                let prev = &filled_offsets[filled_offsets.len() - 1];
-                prev.offset + prev.len as u32 * prev.count as u32
-            };
-            filled_offsets.push(LenGroup {
-                len: target_len as u16,
-                count: 0,
-                offset: prev_offset,
-            });
         }
     }
-    Ok((blob, filled_offsets))
+
+    let mut result = Vec::with_capacity(max_len as usize);
+    for (idx, entry) in group_map.into_iter().enumerate() {
+        let len = (idx + 1) as u16;
+        let (blob, count) = entry.unwrap_or_else(|| (String::new(), 0));
+        result.push(LenGroup { blob, len, count });
+    }
+    
+    Ok(result)
 }

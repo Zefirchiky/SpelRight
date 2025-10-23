@@ -31,13 +31,9 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 ## Goals
 
 - [x] Checking word correctness
-
 - [x] Suggesting similar words
-
 - [ ] Adding new words
-
 - [x] Support different languages
-
 - [ ] Make it fast
 
   Suggestions
@@ -50,34 +46,33 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
   - [ ] 100000 words/s
 
   Loading
-  - [x] 200 ms
-  - [x] 100 ms
-  - [x] 50 ms
-  - [x] 20 ms
-  - [x] 10 ms
-  - [ ] 5 ms
-  - [ ] 2 ms
+  - [x] <200 ms
+  - [x] <100 ms
+  - [x] <50 ms
+  - [x] <20 ms
+  - [x] <10 ms
+  - [x] <5 ms
+  - [x] <3 ms
+  - [ ] <2 ms (read_to_string is more then 2 ms, not sure if even possible)
 
 ## Possible Optimizations
 
 ### Hardware
 
 - [x] Cache locality (dence blob of words)
-
 - [ ] SIMDeez nuts
   - [x] Distance finding
   - [ ] Binary search (might be optimized by the compiler)
-
 - [ ] Parallelism
   - [ ] Rayon
     - [x] Test with and without
     - [ ] Auto desiding between parallel and normal
   - [ ] Manual
+- [ ] GPU Acceleration
 
 ### Memory usage
 
 - [x] Blob of words with no other symbold (aka. no `\n`)
-
 - [x] Storing minimal offsets
 
 Total memory usage is pretty much minimal.
@@ -85,10 +80,8 @@ Total memory usage is pretty much minimal.
 ### Reduce ammount of words checked
 
 - [x] Word length groups (depend on dataset)
-
 - [ ] For length that are max distance from a word (no chars change is allowed, only deletions)
   - [ ] Tracking first letter offsets, use only the once, whose first letter is the same
-
 - [ ] For length that are the same as a word's (no chars deletion or insertion, only change)
 
 ### Caching
@@ -102,13 +95,13 @@ Total memory usage is pretty much minimal.
 >
 > **on my machine.**
 
-- [ ] Reduce parsing by pre-parsing the dataset, look `Better dataset`
+- [x] Reduce parsing by pre-parsing the dataset, look `Better dataset`
 
 ### Better dataset
 
 - [ ] Reduce words amount, most words are never used in an average text
-
-- [ ] Store offsets, no unnecessary `\n`
+- [x] Store offsets, no unnecessary `\n`
+- [ ] Store first laters offsets
 
 > [!NOTE]
 > Will make it harder to work manualy with dataset.
@@ -116,5 +109,5 @@ Total memory usage is pretty much minimal.
 ### Better algorithms
 
 - [x] Good algorithms for each LenGroup (from rapidfuzz)
-
 - [ ] Custom
+  - [ ] We know the word len, and currenly processing group's len. By this we can determine amount of deletions, insertions and changes. If done correctly, will be faster then any other algorithm. Example: word: `thks`, current group: 5, max change: 2. So there can only be 1 deletion, and 1 change for a word to be suggestion.
