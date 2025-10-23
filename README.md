@@ -28,7 +28,7 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 ❌ Wrong word 'sjdkfhsdjfh', no suggestions
 ```
 
-## Road Map
+## Goals
 
 - [x] Checking word correctness
 
@@ -39,6 +39,7 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
 - [x] Support different languages
 
 - [ ] Make it fast
+
   Suggestions
   - [x] 100 words/s
   - [x] 250 words/s
@@ -53,6 +54,7 @@ Totaling dict size + ~200 bytes (depending on the biggest word's length) + addit
   - [x] 100 ms
   - [x] 50 ms
   - [x] 20 ms
+  - [x] 10 ms
   - [ ] 5 ms
   - [ ] 2 ms
 
@@ -87,6 +89,8 @@ Total memory usage is pretty much minimal.
 - [ ] For length that are max distance from a word (no chars change is allowed, only deletions)
   - [ ] Tracking first letter offsets, use only the once, whose first letter is the same
 
+- [ ] For length that are the same as a word's (no chars deletion or insertion, only change)
+
 ### Caching
 
 - [ ] Often mistakes
@@ -108,3 +112,9 @@ Total memory usage is pretty much minimal.
 
 > [!NOTE]
 > Will make it harder to work manualy with dataset.
+
+### Better algorithms
+
+- [x] Good algorithms for each LenGroup (from rapidfuzz)
+
+- [ ] Custom
