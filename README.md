@@ -54,7 +54,7 @@ Cons:
 - Needs precise dataset
 - Pretty difficult words addition without moving the whole Vec
 
-Pros totally overwheight the Cons!
+Pros totally outwheight the Cons!
 
 ### Specialized matching algorithm
 
