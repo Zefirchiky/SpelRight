@@ -38,7 +38,7 @@ Storing words of each length in immutable (optional) blobs, sorted by bytes.
 
 Store info about those blobs: len and/or count.
 
-Cons:
+Pros:
 
 - Incredibly easy to iterate over
 - SIMD compatible
@@ -49,12 +49,12 @@ Cons:
   - Support any language
 - Other that I forgor
 
-Pros:
+Cons:
 
 - Needs precise dataset
 - Pretty difficult words addition without moving the whole Vec
 
-Cons totally overwheight the Pros
+Pros totally overwheight the Cons!
 
 ### Specialized matching algorithm
 
