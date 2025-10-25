@@ -1,6 +1,8 @@
 # MangaHub SpellChecker (Name will be changed)
 
-A simple spell checker written in Rust. Includes CLI and lib.
+A simple Spell Checker written in Rust. Includes CLI and lib.
+
+Also avaliable in [crates.io](https://crates.io/crates/mangahub-spellchecker)!
 
 Supports any utf-8, as long as input file is of right format (look [Dataset Fixer](https://github.com/Zefirchiky/easy-spell-checker/tree/ca505359efdc0a862d3418ae3c8b9f0418a9f25e/dataset_fixer) or load_words_dict).
 
@@ -10,11 +12,11 @@ Was primirely written for [MangaHub](https://github.com/Zefirchiky/MangaHub) pro
 
 On my i5-12450H laptop with VSC opened.
 
-Load and parse 4mb file with 370105 words in ~2ms.
+Load and parse 4mb file with 370105 words in ~<2ms.
 
-Words spelling check ~45,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
+Words spelling check ~50,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
 
-Sorted suggestions for 1000 incorrect words in ~110ms (~9000 words/s, `batch_par_suggest`).
+Sorted suggestions for 1000 incorrect words in ~80ms (~125000 words/s, words case scenario, `batch_par_suggest`).
 
 Memory usage is minimal, a few big strings of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
@@ -81,12 +83,12 @@ This is **multiple times** faster then any other distance finding algorithm.
   - [ ] Long runing Server
   - [ ] Config
 
-  Suggestions (9000 words/s)
+  Suggestions (12500 words/s)
   - [x] 100 words/s
   - [x] 250 words/s
   - [x] 1000 words/s
   - [x] 2500 words/s
-  - [ ] 10000 words/s
+  - [x] 10000 words/s
   - [ ] 25000 words/s
   - [ ] 100000 words/s
 
@@ -98,7 +100,8 @@ This is **multiple times** faster then any other distance finding algorithm.
   - [x] <10 ms
   - [x] <5 ms
   - [x] <3 ms
-  - [ ] <2 ms (read_to_string is more then 2 ms, not sure if even possible)
+  - [x] <2 ms (read_to_string is more then 2 ms, not sure if even possible (nvm, after reloading pc, its less then 2 ms))
+  - [ ] <1 ms (No idea how the fuck this could be possible, but hey, goals!)
 
 ## Possible Optimizations
 

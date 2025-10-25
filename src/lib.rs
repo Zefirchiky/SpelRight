@@ -1,5 +1,6 @@
+#![feature(exact_div)]
 
-use std::{cmp::Ordering, path::Path, str::from_utf8_unchecked};
+use std::{cmp::Ordering, mem, path::Path, str::from_utf8_unchecked};
 
 use rayon::prelude::*;
 
@@ -9,6 +10,11 @@ mod simd_find_matching_prefix;
 pub use load_dict::load_words_dict;
 use simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matching_prefix_simd_sse2};
 
+pub enum BinarySearchWordResult {
+    Found(usize, usize),
+    NotFound(usize, usize),
+}
+
 #[derive(Debug, Clone)]
 pub struct LenGroup {
     blob: String,
@@ -16,9 +22,21 @@ pub struct LenGroup {
     count: u16,
 }
 
+impl LenGroup {
+    pub fn empty(len: u16) -> Self {
+        Self {
+            blob: String::new(),
+            len,
+            count: 0
+        }
+    }
+}
+
 pub struct SpellChecker {
     len_groups: Vec<LenGroup>,
     max_dif: usize,
+    added_words: Vec<String>,
+    added_words_treshhold: usize,
 }
 
 impl SpellChecker {
@@ -30,6 +48,8 @@ impl SpellChecker {
         Self {
             len_groups,
             max_dif: 2,
+            added_words: vec![],
+            added_words_treshhold: 20,
         }
     }
 
@@ -43,6 +63,37 @@ impl SpellChecker {
     pub fn set_max_dif(&mut self, max_dif: usize) -> &mut Self {
         self.max_dif = max_dif;
         self
+    }
+
+    pub fn add(&mut self, word: String) -> &mut Self {
+        self.added_words.push(word);
+        if self.added_words.len() >= self.added_words_treshhold {
+            self.save()
+        }
+        self
+    }
+
+    pub fn save(&mut self) {
+        // let added_words = mem::take(&mut self.added_words);
+        // for word in added_words {
+        //     let wlen = word.len();
+        //     while wlen - 1 > self.len_groups.len() {
+        //         self.len_groups.push(LenGroup::empty(self.len_groups.len() as u16));
+        //     }
+        //     if wlen - 1 == self.len_groups.len() {
+        //         self.len_groups.push(LenGroup {
+        //             blob: word,
+        //             len: wlen as u16,
+        //             count: 1,
+        //         });
+        //     } else {
+        //         self.len_groups[wlen-1].blob.push_str(&word);
+        //     }
+        // }
+
+        // for gr in self.len_groups {
+        //     gr.blob.
+        // }
     }
 
     /// Checks if a word exists in the dataset.
@@ -76,6 +127,14 @@ impl SpellChecker {
     /// If the word is found in the length group, its offsets are found using binary search.
     /// If the word is not found, None is returned.
     pub fn find(&self, word: &str) -> Option<(&LenGroup, (usize, usize))> {
+        if let (lg, BinarySearchWordResult::Found(o1, o2)) = self.find_closest(word)? {
+            Some((lg, (o1, o2)))
+        } else {
+            None
+        }
+    }
+
+    pub fn find_closest(&self, word: &str) -> Option<(&LenGroup, BinarySearchWordResult)> {
         let word = word.to_lowercase();
         let lg = &self.len_groups.get(word.len() - 1)?;
         if lg.count == 0 {
@@ -84,31 +143,31 @@ impl SpellChecker {
 
         let word = word.as_bytes();
         let blob = lg.blob.as_bytes();
-        let offsets = Self::find_word_in_slice_binary_search(word, blob)?;
-        Some((lg, offsets))
+        Some((lg, Self::find_word_in_slice_binary_search(word, blob)))
     }
 
     /// Finds a word in a given slice of bytes using binary search.
     ///
     /// The slice should contain words of the same length, sorted alphabetically.
     ///
-    /// Returns the offsets of the word in the slice if it exists, otherwise None.
+    /// Returns the offsets of the word in the slice if it exists, otherwise the closest offset to it.
     /// The offsets are given as a tuple of (start, end) where start is the index of the first byte of the word,
     /// and end is the index of the last byte of the word plus one.
-    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> Option<(usize, usize)> {
+    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {
         let mut low = 0usize;
-        let mut high = slice.len() / word.len();
+        let mut high = unsafe { slice.len().unchecked_exact_div(word.len()) };
+        let mut mid_off = 0;
         while low < high {
             let mid = low + ((high - low) / 2);
-            let mid_off = mid * word.len();
+            mid_off = mid * word.len();
             let candidate = &slice[mid_off..(mid_off + word.len())];
             match word.cmp(candidate) {
-                Ordering::Equal => return Some((mid_off, mid_off + word.len())),
+                Ordering::Equal => return BinarySearchWordResult::Found(mid_off, mid_off + word.len()),
                 Ordering::Less => high = mid,
                 Ordering::Greater => low = mid + 1,
             }
         }
-        None
+        BinarySearchWordResult::NotFound(mid_off, mid_off + word.len())
     }
 
     /// Checks if a word matches a given candidate with at most the given maximum amount of `deletions`, `insertions` and `substitution`.

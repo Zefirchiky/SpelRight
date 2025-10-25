@@ -14,9 +14,8 @@ use crate::LenGroup;
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
 ) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {
-    // About 2ms
-    let content = fs::read_to_string(file)?;
-    
+    let content = fs::read_to_string(file)?;    // About 2 ms
+
     let lines: Vec<&str> = content.lines().collect();
 
     if lines.is_empty() {
