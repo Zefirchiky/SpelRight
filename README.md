@@ -1,10 +1,12 @@
-# MangaHub SpellChecker (Name will be changed)
+# Spel Right
+
+Yes, it is intentional.
 
 A simple Spell Checker written in Rust. Includes CLI and lib.
 
 Also avaliable in [crates.io](https://crates.io/crates/mangahub-spellchecker)!
 
-Supports any utf-8, as long as input file is of right format (look [Dataset Fixer](https://github.com/Zefirchiky/easy-spell-checker/tree/ca505359efdc0a862d3418ae3c8b9f0418a9f25e/dataset_fixer) or load_words_dict).
+Supports any utf-8, as long as input file is of right format (look [Dataset Fixer](https://github.com/Zefirchiky/SpelRight/blob/49247d1db4ad47746484e1cdd809b7bdec336ffe/dataset_fixer/src/main.rs) or [load_words_dict](https://github.com/Zefirchiky/SpelRight/blob/49247d1db4ad47746484e1cdd809b7bdec336ffe/src/load_dict.rs)).
 
 Was primirely written for [MangaHub](https://github.com/Zefirchiky/MangaHub) project's Novel ecosistem. And to learn Rust :D
 
@@ -16,7 +18,7 @@ Load and parse 4mb file with 370105 words in ~<2ms.
 
 Words spelling check ~50,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
 
-Sorted suggestions for 1000 incorrect words in ~80ms (~125000 words/s, words case scenario, `batch_par_suggest`).
+Sorted suggestions for 1000 incorrect words in ~80ms (~12500 words/s, words case scenario, `batch_par_suggest`).
 
 Memory usage is minimal, a few big strings of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
@@ -79,6 +81,15 @@ This is **multiple times** faster then any other distance finding algorithm.
 - [ ] Adding new words
 - [x] Support different languages
 - [ ] Make it fast
+- [ ] Full languages support
+  - [x] Full askii support
+  - [ ] Full UTF-8 support
+    - [ ] Normalize some languages
+    - [ ] Divide languages into words with pure askii, with possible normalization, and with present UTF-8
+  - [ ] Plugin
+    - [ ] For everything
+      - [ ] Default plugins
+    - [ ] For especially complex languages
 - [ ] Make good CLI
   - [ ] Long runing Server
   - [ ] Config

@@ -35,8 +35,8 @@ impl LenGroup {
 pub struct SpellChecker {
     len_groups: Vec<LenGroup>,
     max_dif: usize,
-    added_words: Vec<String>,
-    added_words_treshhold: usize,
+    // added_words: Vec<String>,
+    // added_words_treshhold: usize,
 }
 
 impl SpellChecker {
@@ -48,8 +48,8 @@ impl SpellChecker {
         Self {
             len_groups,
             max_dif: 2,
-            added_words: vec![],
-            added_words_treshhold: 20,
+            // added_words: vec![],
+            // added_words_treshhold: 20,
         }
     }
 
@@ -66,9 +66,14 @@ impl SpellChecker {
     }
 
     pub fn add(&mut self, word: String) -> &mut Self {
-        self.added_words.push(word);
-        if self.added_words.len() >= self.added_words_treshhold {
-            self.save()
+        // self.added_words.push(word);
+        // if self.added_words.len() >= self.added_words_treshhold {
+        //     self.save()
+        // }
+        let res = self.find_closest(&word);
+        if let Some((lg, BinarySearchWordResult::NotFound(o1, _))) = res {
+            let i = (lg.len - 1) as usize;
+            self.len_groups.get_mut(i).unwrap().blob.insert_str(o1, &word); // FIXME: Inefficient, needs to move all the words after. It should also be responsibility of LenGroup
         }
         self
     }
@@ -153,7 +158,7 @@ impl SpellChecker {
     /// Returns the offsets of the word in the slice if it exists, otherwise the closest offset to it.
     /// The offsets are given as a tuple of (start, end) where start is the index of the first byte of the word,
     /// and end is the index of the last byte of the word plus one.
-    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {
+    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {  // TODO: move into LenGroup
         let mut low = 0usize;
         let mut high = unsafe { slice.len().unchecked_exact_div(word.len()) };
         let mut mid_off = 0;
