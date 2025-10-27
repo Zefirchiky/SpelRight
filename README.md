@@ -80,7 +80,6 @@ This is **multiple times** faster then any other distance finding algorithm.
 - [x] Suggesting similar words
 - [ ] Adding new words
 - [x] Support different languages
-- [ ] Make it fast
 - [ ] Full languages support
   - [x] Full askii support
   - [ ] Full UTF-8 support
@@ -93,6 +92,7 @@ This is **multiple times** faster then any other distance finding algorithm.
 - [ ] Make good CLI
   - [ ] Long runing Server
   - [ ] Config
+- [ ] Make it fast
 
   Suggestions (12500 words/s)
   - [x] 100 words/s
