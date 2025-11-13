@@ -2,8 +2,8 @@ cargo-features = ["profile-rustflags", "trim-paths"]
 
 [package]
 name = "mangahub-spellchecker"
-description = "A fast and lightweigt spell checker and suggester. Primilary created for a MangaHub project."
-version = "0.3.0-rc1"
+description = "A fast and lightweight spell checker and suggester. Primally created for a MangaHub project."
+version = "0.3.1"
 edition = "2024"
 license-file = "LICENSE"
 
