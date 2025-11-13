@@ -1,5 +1,5 @@
 [build]
-rustflags = ["-C", "target-cpu=native", "-Zlocation-detail=none", "-Zfmt-debug=none", "-Zunstable-options"]
+rustflags = []
 # rustflags = ["-C", "target-cpu=native", "-Zunstable-options", "-C", "force-frame-pointers=yes"]
 
 [profile.profiling]

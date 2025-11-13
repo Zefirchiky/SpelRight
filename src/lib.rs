@@ -22,10 +22,6 @@ pub struct LenGroup {
     count: u16,
 }
 
-#[deprecated(
-    since = "0.2.2", 
-    note = "The crate has been renamed. Please use the 'spel-right' crate instead."
-)]
 impl LenGroup {
     pub fn empty(len: u16) -> Self {
         Self {
