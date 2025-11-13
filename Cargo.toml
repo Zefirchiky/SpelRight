@@ -2,10 +2,11 @@ cargo-features = ["profile-rustflags", "trim-paths"]
 
 [package]
 name = "mangahub-spellchecker"
-description = "A fast and lightweight spell checker and suggester. Primally created for a MangaHub project."
+description = "This crate is deprecated. Use SpelRight instead. A fast and lightweight spell checker and suggester."
 version = "0.3.1"
 edition = "2024"
 license-file = "LICENSE"
+repository = "https://github.com/Zefirchiky/SpelRight"
 
 [dependencies]
 rayon = "1.11.0"

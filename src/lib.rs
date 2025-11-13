@@ -22,6 +22,10 @@ pub struct LenGroup {
     count: u16,
 }
 
+#[deprecated(
+    since = "0.2.2", 
+    note = "The crate has been renamed. Please use the 'spel-right' crate instead."
+)]
 impl LenGroup {
     pub fn empty(len: u16) -> Self {
         Self {
@@ -160,7 +164,7 @@ impl SpellChecker {
     /// and end is the index of the last byte of the word plus one.
     fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {  // TODO: move into LenGroup
         let mut low = 0usize;
-        let mut high = unsafe { slice.len().unchecked_exact_div(word.len()) };
+        let mut high = slice.len().checked_div(word.len()).unwrap();
         let mut mid_off = 0;
         while low < high {
             let mid = low + ((high - low) / 2);
