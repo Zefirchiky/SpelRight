@@ -1,7 +1,7 @@
 [package]
 name = "spel-right"
 description = "A fast and lightweight spell checker and suggester."
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 license-file = "LICENSE"
 repository = "https://github.com/Zefirchiky/SpelRight"
