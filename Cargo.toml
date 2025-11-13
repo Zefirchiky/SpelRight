@@ -1,6 +1,6 @@
 [package]
 name = "mangahub-spellchecker"
-description = "A fast and lightweight spell checker and suggester."
+description = "Deprecated, use 'spel-right' instead. A fast and lightweight spell checker and suggester."
 version = "0.3.1"
 edition = "2024"
 license-file = "LICENSE"
