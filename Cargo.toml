@@ -1,5 +1,7 @@
+cargo-features = ["profile-rustflags", "trim-paths"]
+
 [package]
-name = "spel-right"
+name = "mangahub-spellchecker"
 description = "A fast and lightweigt spell checker and suggester. Primilary created for a MangaHub project."
 version = "0.3.0-rc1"
 edition = "2024"
@@ -8,14 +10,18 @@ license-file = "LICENSE"
 [dependencies]
 rayon = "1.11.0"
 
+[profile.dev]
+incremental = true
+rustflags = ["-Zthreads=8"]
+
 [profile.release]
-panic = "abort"
 codegen-units = 1
 lto = true
-opt-level = 3
-
-[target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
+opt-level = "s"
+panic = "abort"
+strip = true
+trim-paths = "all" # Removes potentially privileged information from binaries.
+rustflags = ["-Cdebuginfo=0"] # Better compile performance.
 
 [dev-dependencies]
 criterion = "0.7.0"

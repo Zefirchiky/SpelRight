@@ -1,6 +1,6 @@
 #![feature(exact_div)]
 
-use std::{cmp::Ordering, mem, path::Path, str::from_utf8_unchecked};
+use std::{cmp::Ordering, path::Path, str::from_utf8_unchecked};
 
 use rayon::prelude::*;
 
