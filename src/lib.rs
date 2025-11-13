@@ -5,14 +5,29 @@ use std::{cmp::Ordering, path::Path, str::from_utf8_unchecked};
 use rayon::prelude::*;
 
 mod load_dict;
-mod simd_find_matching_prefix;
+mod matching;
 
+use matching::matches_single_bytes;
 pub use load_dict::load_words_dict;
-use simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matching_prefix_simd_sse2};
+
+pub mod spell_checkers;
 
 pub enum BinarySearchWordResult {
     Found(usize, usize),
     NotFound(usize, usize),
+}
+
+#[derive(Debug, Clone)]
+pub enum Decoding {
+    Ascii,
+    Normalized,
+    Utf8,
+}
+
+#[derive(Debug, Clone)]
+pub struct DecodeGroup {
+    blob: String,
+    decoding: Decoding,
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +44,53 @@ impl LenGroup {
             len,
             count: 0
         }
+    }
+
+    /// Checks if a word exists in the dataset.
+    ///
+    /// Returns true if the word exists, false otherwise.
+    pub fn check(&self, word: &str) -> bool {
+        self.find(word).is_some()
+    }
+
+    /// Finds a word in the dataset and returns its length group and offsets if found.
+    ///
+    /// The word is first converted to lowercase, and then the length group is searched for.
+    /// If the word is found in the length group, its offsets are found using binary search.
+    /// If the word is not found, None is returned.
+    pub fn find(&self, word: &str) -> Option<(usize, usize)> {
+        if let BinarySearchWordResult::Found(o1, o2) = self.find_closest(word)? {
+            Some((o1, o2))
+        } else {
+            None
+        }
+    }
+
+    pub fn find_closest(&self, word: &str) -> Option<BinarySearchWordResult> {
+        if self.count == 0 {
+            return None;
+        }
+        let word = word.to_lowercase();
+        let word = word.as_bytes();
+        Some(Self::find_word_in_slice_binary_search(word, self.blob.as_bytes()))
+    }
+
+    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {  // TODO: move into LenGroup
+        // Supports both ascii and utf-8 without a problem
+        let mut low = 0usize;
+        let mut high = slice.len().checked_div(word.len()).unwrap();
+        let mut mid_off = 0;
+        while low < high {
+            let mid = low + ((high - low) / 2);
+            mid_off = mid * word.len();
+            let candidate = &slice[mid_off..(mid_off + word.len())];
+            match word.cmp(candidate) {
+                Ordering::Equal => return BinarySearchWordResult::Found(mid_off, mid_off + word.len()),
+                Ordering::Less => high = mid,
+                Ordering::Greater => low = mid + 1,
+            }
+        }
+        BinarySearchWordResult::NotFound(mid_off, mid_off + word.len())
     }
 }
 
@@ -105,7 +167,11 @@ impl SpellChecker {
     ///
     /// Returns true if the word exists, false otherwise.
     pub fn check(&self, word: &str) -> bool {
-        self.find(word).is_some()
+        let group = self.len_groups.get(word.len());
+        match group {
+            Some(lg) => lg.check(word),
+            None => false
+        }
     }
 
     pub fn batch_check<'a>(&self, words: &'a [&str]) -> Vec<(&'a str, bool)> {
@@ -126,131 +192,14 @@ impl SpellChecker {
             .collect()
     }
 
-    /// Finds a word in the dataset and returns its length group and offsets if found.
-    ///
-    /// The word is first converted to lowercase, and then the length group is searched for.
-    /// If the word is found in the length group, its offsets are found using binary search.
-    /// If the word is not found, None is returned.
     pub fn find(&self, word: &str) -> Option<(&LenGroup, (usize, usize))> {
-        if let (lg, BinarySearchWordResult::Found(o1, o2)) = self.find_closest(word)? {
-            Some((lg, (o1, o2)))
-        } else {
-            None
-        }
+        let group = self.len_groups.get(word.len())?;
+        Some((group, group.find(word)?))
     }
-
-    pub fn find_closest(&self, word: &str) -> Option<(&LenGroup, BinarySearchWordResult)> {
-        let word = word.to_lowercase();
-        let lg = &self.len_groups.get(word.len() - 1)?;
-        if lg.count == 0 {
-            return None;
-        }
-
-        let word = word.as_bytes();
-        let blob = lg.blob.as_bytes();
-        Some((lg, Self::find_word_in_slice_binary_search(word, blob)))
-    }
-
-    /// Finds a word in a given slice of bytes using binary search.
-    ///
-    /// The slice should contain words of the same length, sorted alphabetically.
-    ///
-    /// Returns the offsets of the word in the slice if it exists, otherwise the closest offset to it.
-    /// The offsets are given as a tuple of (start, end) where start is the index of the first byte of the word,
-    /// and end is the index of the last byte of the word plus one.
-    fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySearchWordResult {  // TODO: move into LenGroup
-        let mut low = 0usize;
-        let mut high = slice.len().checked_div(word.len()).unwrap();
-        let mut mid_off = 0;
-        while low < high {
-            let mid = low + ((high - low) / 2);
-            mid_off = mid * word.len();
-            let candidate = &slice[mid_off..(mid_off + word.len())];
-            match word.cmp(candidate) {
-                Ordering::Equal => return BinarySearchWordResult::Found(mid_off, mid_off + word.len()),
-                Ordering::Less => high = mid,
-                Ordering::Greater => low = mid + 1,
-            }
-        }
-        BinarySearchWordResult::NotFound(mid_off, mid_off + word.len())
-    }
-
-    /// Checks if a word matches a given candidate with at most the given maximum amount of `deletions`, `insertions` and `substitution`.
-    ///
-    /// Returns a tuple of `(bool, u16)` where the boolean is `true` if the word matches the candidate, and the `u16` is the total number of operations done to match the two words.
-    ///
-    /// The algorithm first finds the matching prefix of the two words using `SIMD` if available, and then continues with a scalar algorithm from the mismatch point.
-    ///
-    /// The maximum amount of `deletions`, `insertions` and `substitutions` are given as mutable parameters, and are decreased by one each time an operation is done.
-    ///
-    /// If the word matches the candidate with at most the given maximum amount of operations, the function returns true and the total number of operations done.
-    /// Otherwise, it returns `false` and `0`.
-    #[inline]
-    pub fn matches_single(
-        word: &[u8],
-        candidate: &[u8],
-        mut max_deletions: u16,
-        mut max_insertions: u16,
-        mut max_substitutions: u16,
-    ) -> (bool, u16) {
-        let wlen = word.len();
-        let clen = candidate.len();
-        
-        // Find matching prefix using SIMD
-        let mut wi = 0;
-        let mut ci = 0;
-        
-        #[cfg(target_arch = "x86_64")]
-        {
-            if is_x86_feature_detected!("avx2") {
-                unsafe {
-                    wi = find_matching_prefix_simd_avx2(word, candidate);
-                    ci = wi;
-                }
-            }
-            else if is_x86_feature_detected!("sse2") {
-                unsafe {
-                    wi = find_matching_prefix_simd_sse2(word, candidate);
-                    ci = wi;
-                }
-            }
-        }
-        
-        // Continue with scalar algorithm from mismatch point
-        while wi < wlen && ci < clen {
-            if word[wi] == candidate[ci] {
-                wi += 1;
-                ci += 1;
-            }
-            else if max_deletions > 0 && wi + 1 < wlen && word[wi + 1] == candidate[ci] {
-                max_deletions -= 1;
-                wi += 1;
-            }
-            else if max_insertions > 0 && ci + 1 < clen && word[wi] == candidate[ci + 1] {
-                max_insertions -= 1;
-                ci += 1;
-            }
-            else if max_substitutions > 0 {
-                max_substitutions -= 1;
-                wi += 1;
-                ci += 1;
-            }
-            else {
-                return (false, 0);
-            }
-        }
-        
-        let remaining_word = (wlen - wi) as u16;
-        let remaining_candidate = (clen - ci) as u16;
-        
-        if remaining_word <= max_deletions && remaining_candidate <= max_insertions {
-            (
-                true,
-                max_deletions - remaining_word + max_insertions - remaining_candidate + max_substitutions,
-            )
-        } else {
-            (false, 0)
-        }
+    
+    pub fn find_closest<'a>(&self, word: &str) -> Option<(&LenGroup, BinarySearchWordResult)> {
+        let group = self.len_groups.get(word.len())?;
+        Some((group, group.find_closest(word)?))
     }
 
     /// Finds all words in the dataset that are similar to the given `word`.
@@ -298,7 +247,7 @@ impl SpellChecker {
                             }
                         }
                         
-                        let (is_ok, dist) = Self::matches_single(
+                        let (is_ok, dist) = matches_single_bytes(
                             ch, word, max_del, max_ins, max_chg
                         );
                         if is_ok {

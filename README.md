@@ -18,11 +18,13 @@ Was primarily written for [MangaHub](https://github.com/Zefirchiky/MangaHub) pro
 
 On my i5-12450H laptop with VSC opened.
 
+English.
+
 Load and parse 4mb file with 370105 words in ~<2ms.
 
 Words spelling check ~50,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
 
-Sorted suggestions for 1000 incorrect words in ~80ms (~12500 words/s, words case scenario, `batch_par_suggest`).
+Sorted suggestions for 1000 incorrect words in ~63ms (~15800 words/s, words case scenario, `batch_par_suggest`).
 
 Memory usage is minimal, a few big strings of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.

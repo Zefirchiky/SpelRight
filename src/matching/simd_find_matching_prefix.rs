@@ -1,3 +1,20 @@
+/// Finds the length of the matching prefix of two strings using SIMD instructions on x86-64.
+///
+/// This function uses SSE2 instructions to compare 16 bytes at a time, and falls back to scalar comparison for remaining bytes.
+///
+/// Returns the length of the matching prefix. If the two strings are identical, returns the length of the shorter string.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it uses the `std::arch::x86_64` module, which is not safe to use in general code.
+///
+/// # Panics
+///
+/// This function will panic if the input strings are not aligned to a 16-byte boundary.
+///
+/// # Performance
+///
+/// This function is significantly faster than the scalar version, especially for longer strings.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse2")]
 pub unsafe fn find_matching_prefix_simd_sse2(word: &[u8], candidate: &[u8]) -> usize {
