@@ -1,6 +1,6 @@
 use std::env::{self, current_exe};
 
-use mangahub_spellchecker::{SpellChecker};
+use spel_right::{SpellChecker};
 
 fn main() {
     let path = current_exe().unwrap();

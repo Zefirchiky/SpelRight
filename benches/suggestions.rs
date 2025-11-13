@@ -2,7 +2,7 @@
 extern crate test;
 #[cfg(test)]
 mod tests {
-    use mangahub_spellchecker::{SpellChecker};
+    use spel_right::{SpellChecker};
     use test::Bencher;
 
     static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
