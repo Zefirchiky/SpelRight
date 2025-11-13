@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod suggest_tests {
-    use spel_right::SpellChecker;
+    use mangahub_spellchecker::SpellChecker;
 
     static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
 

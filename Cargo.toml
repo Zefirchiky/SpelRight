@@ -1,7 +1,5 @@
-cargo-features = ["profile-rustflags", "trim-paths"]
-
 [package]
-name = "spel-right"
+name = "mangahub-spellchecker"
 description = "A fast and lightweight spell checker and suggester."
 version = "0.3.1"
 edition = "2024"
@@ -13,7 +11,6 @@ rayon = "1.11.0"
 
 [profile.dev]
 incremental = true
-rustflags = ["-Zthreads=8"]
 
 [profile.release]
 codegen-units = 1
@@ -21,15 +18,6 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
-trim-paths = "all" # Removes potentially privileged information from binaries.
-rustflags = [
-    "-Cdebuginfo=0",
-    "-C",
-    "target-cpu=native",
-    "-Zlocation-detail=none",
-    "-Zfmt-debug=none",
-    "-Zunstable-options"
-]
 
 [dev-dependencies]
 criterion = "0.7.0"

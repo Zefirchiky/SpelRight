@@ -1,5 +1,16 @@
-[build]
-rustflags = []
+[build.dev]
+rustflags = ["-Zthreads=8"]
+
+[build.release]
+rustflags = [
+    "-Cdebuginfo=0",
+    "-C",
+    "target-cpu=native",
+    "-Zlocation-detail=none",
+    "-Zfmt-debug=none",
+    "-Zunstable-options"
+] # Better compile performance.
+trim-paths = "all" # Removes potentially privileged information from binaries.
 # rustflags = ["-C", "target-cpu=native", "-Zunstable-options", "-C", "force-frame-pointers=yes"]
 
 [profile.profiling]

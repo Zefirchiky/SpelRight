@@ -32,6 +32,10 @@ impl LenGroup {
     }
 }
 
+#[deprecated(
+    since = "0.2.2", 
+    note = "The crate has been renamed. Please use the 'spel-right' crate instead."
+)]
 pub struct SpellChecker {
     len_groups: Vec<LenGroup>,
     max_dif: usize,
