@@ -6,11 +6,9 @@ use rayon::prelude::*;
 
 mod load_dict;
 mod matching;
-
-use matching::matches_single_bytes;
-pub use load_dict::load_words_dict;
-
 pub mod spell_checkers;
+
+pub use load_dict::load_words_dict;
 
 pub enum BinarySearchWordResult {
     Found(usize, usize),
@@ -24,21 +22,21 @@ pub enum Decoding {
     Utf8,
 }
 
-#[derive(Debug, Clone)]
-pub struct DecodeGroup {
-    blob: String,
-    decoding: Decoding,
-}
+// #[derive(Debug, Clone)]
+// pub struct DecodeGroup {
+//     blob: String,
+//     decoding: Decoding,
+// }
 
 #[derive(Debug, Clone)]
 pub struct LenGroup {
     blob: String,
-    len: u16,
-    count: u16,
+    len: usize,
+    count: usize,
 }
 
 impl LenGroup {
-    pub fn empty(len: u16) -> Self {
+    pub fn empty(len: usize) -> Self {
         Self {
             blob: String::new(),
             len,
@@ -134,7 +132,7 @@ impl SpellChecker {
         // }
         let res = self.find_closest(&word);
         if let Some((lg, BinarySearchWordResult::NotFound(o1, _))) = res {
-            let i = (lg.len - 1) as usize;
+            let i = lg.len - 1;
             self.len_groups.get_mut(i).unwrap().blob.insert_str(o1, &word); // FIXME: Inefficient, needs to move all the words after. It should also be responsibility of LenGroup
         }
         self
@@ -232,13 +230,13 @@ impl SpellChecker {
                 let dif = group.len as isize - word_len as isize;
                 let abs_dif = dif.abs() as usize;
 
-                let max_del = dif.max(0) as u16;
-                let max_ins = (-dif).max(0) as u16;
-                let max_chg = (self.max_dif - abs_dif) as u16;
+                let max_del = dif.max(0) as usize;
+                let max_ins = (-dif).max(0) as usize;
+                let max_chg = self.max_dif - abs_dif;
 
                 group.blob
                     .as_bytes()
-                    .par_chunks(group.len as usize)
+                    .par_chunks(group.len)
                     .filter_map(|ch| {
                         if abs_dif == self.max_dif {
                             if ch[0] != first_char && ch[0] != last_char &&
@@ -247,13 +245,13 @@ impl SpellChecker {
                             }
                         }
                         
-                        let (is_ok, dist) = matches_single_bytes(
+                        let (is_ok, dist) = matching::matches_single(
                             ch, word, max_del, max_ins, max_chg
                         );
                         if is_ok {
                             // Dataset will always be valid, and chars are based on len group. Cant have invalid utf-8.
                             // Trust
-                            Some((unsafe { from_utf8_unchecked(ch) }, dist as usize))
+                            Some((unsafe { from_utf8_unchecked(ch) }, dist))
                         } else {
                             None
                         }

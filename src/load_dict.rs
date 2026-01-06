@@ -27,26 +27,26 @@ pub fn load_words_dict<T: AsRef<Path>>(
         .iter()
         .step_by(2)
         .last()
-        .and_then(|line| line.trim().parse::<u16>().ok())
+        .and_then(|line| line.trim().parse::<usize>().ok())
         .unwrap_or(0);
 
-    let mut group_map: Vec<Option<(String, u16)>> = vec![None; max_len as usize];
+    let mut group_map: Vec<Option<(String, usize)>> = vec![None; max_len];
 
     for i in (0..lines.len()).step_by(2) {
-        if let Ok(word_len) = lines[i].trim().parse::<u16>() {
-            if word_len > 0 && (word_len as usize) <= max_len as usize {
+        if let Ok(word_len) = lines[i].trim().parse::<usize>() {
+            if word_len > 0 && (word_len) <= max_len {
                 if let Some(blob_line) = lines.get(i + 1) {
                     let blob = blob_line.trim().to_string();
-                    let count = (blob.len() / word_len as usize) as u16;
-                    group_map[(word_len as usize) - 1] = Some((blob, count));
+                    let count = blob.len() / word_len;
+                    group_map[(word_len) - 1] = Some((blob, count));
                 }
             }
         }
     }
 
-    let mut result = Vec::with_capacity(max_len as usize);
+    let mut result = Vec::with_capacity(max_len);
     for (idx, entry) in group_map.into_iter().enumerate() {
-        let len = (idx + 1) as u16;
+        let len = idx + 1;
         let (blob, count) = entry.unwrap_or_else(|| (String::new(), 0));
         result.push(LenGroup { blob, len, count });
     }

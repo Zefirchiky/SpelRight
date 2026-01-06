@@ -10,8 +10,7 @@ Supports any utf-8 (kinda, WIP), as long as input file is of right format (look 
 
 Was primarily written for [MangaHub](https://github.com/Zefirchiky/MangaHub) project's Novel ecosystem. And to learn Rust :D
 
-> [!WARN]
->
+> [!NOTE]
 > For now, only supports bytes processing, WIP
 
 ## Some benchmarks

@@ -1,4 +1,4 @@
-use super::simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matching_prefix_simd_sse2};
+// use super::simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matching_prefix_simd_sse2};
 
 /// Checks if a word matches a given candidate with at most the given maximum amount of `deletions`, `insertions` and `substitution`.
 ///
@@ -10,89 +10,35 @@ use super::simd_find_matching_prefix::{find_matching_prefix_simd_avx2, find_matc
 ///
 /// If the word matches the candidate with at most the given maximum amount of operations, the function returns true and the total number of operations done.
 /// Otherwise, it returns `false` and `0`.
-#[inline]
-pub fn matches_single_bytes(
-    word: &[u8],
-    candidate: &[u8],
-    mut max_deletions: u16,
-    mut max_insertions: u16,
-    mut max_substitutions: u16,
-) -> (bool, u16) {
-    let wlen = word.len();
-    let clen = candidate.len();
-    
-    // Find matching prefix using SIMD
-    let mut wi = 0;
-    let mut ci = 0;
-    
-    #[cfg(target_arch = "x86_64")]
-    {
-        if is_x86_feature_detected!("avx2") {
-            unsafe {
-                wi = find_matching_prefix_simd_avx2(word, candidate);
-            }
-        }
-        else if is_x86_feature_detected!("sse2") {
-            unsafe {
-                wi = find_matching_prefix_simd_sse2(word, candidate);
-            }
-        }
-    }
-
-    let wlen = word.len();
-    let clen = candidate.len();
-
-    let mut wi = 0;
-    let mut ci = 0;
-    
-    while wi < wlen && ci < clen {
-        if word[wi] == candidate[ci] {
-            wi += 1;
-            ci += 1;
-        }
-        else if max_deletions > 0 && wi + 1 < wlen && word[wi + 1] == candidate[ci] {
-            max_deletions -= 1;
-            wi += 1;
-        }
-        else if max_insertions > 0 && ci + 1 < clen && word[wi] == candidate[ci + 1] {
-            max_insertions -= 1;
-            ci += 1;
-        }
-        else if max_substitutions > 0 {
-            max_substitutions -= 1;
-            wi += 1;
-            ci += 1;
-        }
-        else {
-            return (false, 0);
-        }
-    }
-    
-    let remaining_word = (wlen - wi) as u16;
-    let remaining_candidate = (clen - ci) as u16;
-    
-    if remaining_word <= max_deletions && remaining_candidate <= max_insertions {
-        (
-            true,
-            max_deletions - remaining_word + max_insertions - remaining_candidate + max_substitutions,
-        )
-    } else {
-        (false, 0)
-    }
-}
-
+#[inline(always)]
 pub fn matches_single<T: Eq>(
     word: &[T],
     candidate: &[T],
-    mut max_deletions: u16,
-    mut max_insertions: u16,
-    mut max_substitutions: u16,
-) -> (bool, u16) {
+    mut max_deletions: usize,
+    mut max_insertions: usize,
+    mut max_substitutions: usize,
+) -> (bool, usize) {
     let wlen = word.len();
     let clen = candidate.len();
 
     let mut wi = 0;
     let mut ci = 0;
+    
+    // #[cfg(target_arch = "x86_64")]   // ! SMH SLOWER??? And by 20 ms for 1000 words at that, the fuck. Is it the fucking memory alloc or some shit, I'm so frustrated
+    // {
+    //     if is_x86_feature_detected!("avx2") {
+    //         unsafe {
+    //             wi = find_matching_prefix_simd_avx2(word, candidate);
+    //             ci = wi;
+    //         }
+    //     }
+    //     else if is_x86_feature_detected!("sse2") {
+    //         unsafe {
+    //             wi = find_matching_prefix_simd_sse2(word, candidate);
+    //             ci = wi
+    //         }
+    //     }
+    // }
     
     while wi < wlen && ci < clen {
         if word[wi] == candidate[ci] {
@@ -117,8 +63,8 @@ pub fn matches_single<T: Eq>(
         }
     }
     
-    let remaining_word = (wlen - wi) as u16;
-    let remaining_candidate = (clen - ci) as u16;
+    let remaining_word = wlen - wi;
+    let remaining_candidate = clen - ci;
     
     if remaining_word <= max_deletions && remaining_candidate <= max_insertions {
         (
