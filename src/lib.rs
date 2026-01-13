@@ -98,6 +98,7 @@ impl LenGroup {
     }
 }
 
+#[derive(Default)]
 pub struct SpellChecker {
     pub len_groups: Vec<LenGroup>,
     /// Sets the maximum difference between words to be considered similar.
