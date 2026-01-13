@@ -28,6 +28,12 @@ pub enum Decoding {
 //     decoding: Decoding,
 // }
 
+#[derive(Debug, Clone, Copy)]
+pub struct WordId {
+    pub len: usize,
+    pub offset: usize
+}
+
 #[derive(Debug, Clone)]
 pub struct LenGroup {
     blob: String,
@@ -93,8 +99,15 @@ impl LenGroup {
 }
 
 pub struct SpellChecker {
-    len_groups: Vec<LenGroup>,
-    max_dif: usize,
+    pub len_groups: Vec<LenGroup>,
+    /// Sets the maximum difference between words to be considered similar.
+    ///
+    /// This value is used in the suggest method to determine how many words to suggest.
+    ///
+    /// A value of `0` means that only exact matches are considered similar, while a value of `1` means that words that are one `insertion`, `deletion`, or `substitution` away are also considered similar.
+    ///
+    /// A value of `2` (the default) means that words that are up to two `insertions`, `deletions`, or `substitutions` away are also considered similar.
+    pub max_dif: usize,
     // added_words: Vec<String>,
     // added_words_treshhold: usize,
 }
@@ -111,18 +124,6 @@ impl SpellChecker {
             // added_words: vec![],
             // added_words_treshhold: 20,
         }
-    }
-
-    /// Sets the maximum difference between words to be considered similar.
-    ///
-    /// This value is used in the suggest method to determine how many words to suggest.
-    ///
-    /// A value of `0` means that only exact matches are considered similar, while a value of `1` means that words that are one `insertion`, `deletion`, or `substitution` away are also considered similar.
-    ///
-    /// A value of `2` (the default) means that words that are up to two `insertions`, `deletions`, or `substitutions` away are also considered similar.
-    pub fn set_max_dif(&mut self, max_dif: usize) -> &mut Self {
-        self.max_dif = max_dif;
-        self
     }
 
     pub fn add(&mut self, word: String) -> &mut Self {
@@ -161,6 +162,29 @@ impl SpellChecker {
         // }
     }
 
+    /// Gets a word from the dataset.
+    pub fn get(&self, word: WordId) -> Option<&str> {
+        let lg = self.len_groups.get(word.len)?;
+        if word.offset >= lg.blob.len() {
+            None
+        } else {
+            Some(&lg.blob[word.offset..word.offset+word.len])
+        }
+    }
+
+    /// Gets a word from the dataset without any checks.
+    ///
+    /// This function assumes that the given `WordId` is valid and that the word exists in the dataset.
+    /// It does not perform any checks on the given `WordId`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the given `WordId` is invalid or if the word does not exist in the dataset.
+    pub fn get_unchecked(&self, word: WordId) -> &str {
+        let lg = self.len_groups.get(word.len).expect(&format!("LenGroup of len {} should exist", word.len));
+        &lg.blob[word.offset..word.offset+word.len]
+    }
+
     /// Checks if a word exists in the dataset.
     ///
     /// Returns true if the word exists, false otherwise.
@@ -190,9 +214,9 @@ impl SpellChecker {
             .collect()
     }
 
-    pub fn find(&self, word: &str) -> Option<(&LenGroup, (usize, usize))> {
+    pub fn find(&self, word: &str) -> Option<WordId> {
         let group = self.len_groups.get(word.len())?;
-        Some((group, group.find(word)?))
+        Some(WordId { len: group.len, offset: group.find(word)?.0 })
     }
     
     pub fn find_closest<'a>(&self, word: &str) -> Option<(&LenGroup, BinarySearchWordResult)> {
@@ -272,8 +296,8 @@ impl SpellChecker {
     pub fn suggest(&self, word: &str, take_first_x: usize) -> Vec<&str> {
         let word = word.to_lowercase();
         
-        if let Some((lg, offset)) = self.find(&word) {
-            return vec![&lg.blob[offset.0..offset.1]];
+        if let Some(word) = self.find(&word) {
+            return vec![self.get_unchecked(word)];
         }
         
         let word_bytes = word.as_bytes();

@@ -8,7 +8,7 @@ fn main() {
     let path = path.join("words.txt");
 
     let mut checker = SpellChecker::new(path);
-    checker.set_max_dif(4);
+    checker.max_dif = 4;
 
     let mut return_elements = 10;
     let args: Vec<String> = env::args().collect();
