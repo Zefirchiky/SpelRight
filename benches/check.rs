@@ -2,10 +2,10 @@
 extern crate test;
 #[cfg(test)]
 mod tests {
-    use spel_right::{SpellChecker};
-    use test::{Bencher};
+    use spel_right::SpellChecker;
+    use test::Bencher;
 
-    static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
+    static WORDS_FILE: &str = "words.txt";
 
     #[bench]
     fn iter_100000_correct_words(b: &mut Bencher) {
@@ -48,7 +48,7 @@ mod tests {
         for i in 0..100_000 {
             words.push(bench_words[i % len]);
         }
-        
+
         b.iter(|| checker.batch_check(&words));
     }
 
@@ -87,13 +87,13 @@ mod tests {
             "system",
             "function",
         ];
-        
+
         let mut words = Vec::with_capacity(100_000);
         let len = bench_words.len();
         for i in 0..100_000 {
             words.push(bench_words[i % len]);
         }
-        
+
         b.iter(|| checker.batch_par_check(&words));
     }
 }

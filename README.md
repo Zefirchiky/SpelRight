@@ -21,9 +21,9 @@ English.
 
 Load and parse 4mb file with 370105 words in ~<2ms.
 
-Words spelling check ~50,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
+Words spelling check ~90,000,000 words/s for all correct words (worst case scenario, `batch_par_check`).
 
-Sorted suggestions for 1000 incorrect words in ~63ms (~15800 words/s, words case scenario, `batch_par_suggest`).
+Sorted suggestions for 1000 incorrect words in ~54ms (~18500 words/s, words case scenario, `batch_par_suggest`).
 
 Memory usage is minimal, a few big strings of all words without a delimiters + a small vec of information.
 Totaling dict size + ~200 bytes (depending on the biggest word's length) + additional cost of some operations.
@@ -117,7 +117,8 @@ This is **multiple times** faster then any other distance finding algorithm.
   - [x] <5 ms
   - [x] <3 ms
   - [x] <2 ms (read_to_string is more then 2 ms, not sure if even possible (nvm, after reloading pc, its less then 2 ms))
-  - [ ] <1 ms (No idea how the fuck this could be possible, but hey, goals!)
+  - [x] <1 ms (No idea how the fuck this could be possible, but hey, goals!
+  - [x] <0.5 ms (Yeaaah, so, switching to Cachy brought it here smh)
 
 ## Possible Optimizations
 

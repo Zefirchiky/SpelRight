@@ -1,6 +1,6 @@
 use std::env::{self, current_exe};
 
-use spel_right::{SpellChecker};
+use spel_right::SpellChecker;
 
 fn main() {
     let path = current_exe().unwrap();
@@ -13,14 +13,17 @@ fn main() {
     let mut return_elements = 10;
     let args: Vec<String> = env::args().collect();
     let words_to_check = args.get(1..).unwrap();
-    let words_to_check: Vec<&str> = words_to_check.iter().filter_map(|s| {
-        let s = s.as_str();
-        if s == "--full" {
-            return_elements = 0;
-            return None
-        }
-        Some(s)
-    }).collect();
+    let words_to_check: Vec<&str> = words_to_check
+        .iter()
+        .filter_map(|s| {
+            let s = s.as_str();
+            if s == "--full" {
+                return_elements = 0;
+                return None;
+            }
+            Some(s)
+        })
+        .collect();
 
     let suggestions = checker.batch_par_suggest(&words_to_check, return_elements);
 

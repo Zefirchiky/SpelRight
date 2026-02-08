@@ -1,5 +1,5 @@
-use std::{path::Path, fs};
 use crate::LenGroup;
+use std::{fs, path::Path};
 
 /// Loads a words dictionary from a given file.
 ///
@@ -14,8 +14,8 @@ use crate::LenGroup;
 pub fn load_words_dict<T: AsRef<Path>>(
     file: T,
 ) -> Result<Vec<LenGroup>, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(file)?;    // About 2 ms
-
+    let content = fs::read_to_string(file)?; // About 2 ms
+    
     let lines: Vec<&str> = content.lines().collect();
 
     if lines.is_empty() {
@@ -50,6 +50,6 @@ pub fn load_words_dict<T: AsRef<Path>>(
         let (blob, count) = entry.unwrap_or_else(|| (String::new(), 0));
         result.push(LenGroup { blob, len, count });
     }
-    
+
     Ok(result)
 }

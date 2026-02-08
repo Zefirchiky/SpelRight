@@ -23,7 +23,7 @@ pub fn matches_single<T: Eq>(
 
     let mut wi = 0;
     let mut ci = 0;
-    
+
     // #[cfg(target_arch = "x86_64")]   // ! SMH SLOWER??? And by 20 ms for 1000 words at that, the fuck. Is it the fucking memory alloc or some shit, I'm so frustrated
     // {
     //     if is_x86_feature_detected!("avx2") {
@@ -39,37 +39,34 @@ pub fn matches_single<T: Eq>(
     //         }
     //     }
     // }
-    
+
     while wi < wlen && ci < clen {
         if word[wi] == candidate[ci] {
             wi += 1;
             ci += 1;
-        }
-        else if max_deletions > 0 && wi + 1 < wlen && word[wi + 1] == candidate[ci] {
+        } else if max_deletions > 0 && wi + 1 < wlen && word[wi + 1] == candidate[ci] {
             max_deletions -= 1;
             wi += 1;
-        }
-        else if max_insertions > 0 && ci + 1 < clen && word[wi] == candidate[ci + 1] {
+        } else if max_insertions > 0 && ci + 1 < clen && word[wi] == candidate[ci + 1] {
             max_insertions -= 1;
             ci += 1;
-        }
-        else if max_substitutions > 0 {
+        } else if max_substitutions > 0 {
             max_substitutions -= 1;
             wi += 1;
             ci += 1;
-        }
-        else {
+        } else {
             return (false, 0);
         }
     }
-    
+
     let remaining_word = wlen - wi;
     let remaining_candidate = clen - ci;
-    
+
     if remaining_word <= max_deletions && remaining_candidate <= max_insertions {
         (
             true,
-            max_deletions - remaining_word + max_insertions - remaining_candidate + max_substitutions,
+            max_deletions - remaining_word + max_insertions - remaining_candidate
+                + max_substitutions,
         )
     } else {
         (false, 0)

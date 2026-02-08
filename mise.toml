@@ -1,0 +1,27 @@
+# [tasks._run_exec]
+# run = "cargo {{command}} {{ if mode == "d" { "--debug" } else { "--release" } }}"
+
+# _run-exec command="run" mode="r":
+    
+
+# [group('dev')]
+# run mode="r":
+#     cargo fmt
+#     just _run-exec run {{mode}}
+
+# [group('dev')]
+# build mode="r":
+#     cargo fmt
+#     just _run-exec build {{mode}}
+
+# [group('dev')]
+# test mode="r":
+#     just _run-exec test {{mode}}
+
+# # Rust cargo test with no capture
+# [group('dev')]
+# test-dbg mode="r":
+#     just run-exec test {{mode}} -- -no-capture
+
+# just push commit: test
+#     g {{commit}}

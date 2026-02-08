@@ -2,12 +2,21 @@
 mod suggest_tests {
     use spel_right::SpellChecker;
 
-    static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
+    static WORDS_FILE: &str = "words.txt";
 
     #[test]
     fn suggest_correctness() {
         let checker = SpellChecker::new(WORDS_FILE);
-        assert_eq!(checker.suggest("diferently", 0), vec!["differently", "divergently", "referently", "efferently", "afferently"]);
+        assert_eq!(
+            checker.suggest("diferently", 0),
+            vec![
+                "differently",
+                "divergently",
+                "referently",
+                "efferently",
+                "afferently"
+            ]
+        );
     }
 
     #[test]

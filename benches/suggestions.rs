@@ -2,10 +2,10 @@
 extern crate test;
 #[cfg(test)]
 mod tests {
-    use spel_right::{SpellChecker};
+    use spel_right::SpellChecker;
     use test::Bencher;
 
-    static WORDS_FILE: &str = "C:/dev/tools/basic-spellchecker/words.txt";
+    static WORDS_FILE: &str = "words.txt";
 
     #[bench]
     fn batch_suggest_6_f_words(b: &mut Bencher) {

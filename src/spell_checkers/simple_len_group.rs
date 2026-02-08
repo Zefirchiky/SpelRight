@@ -1,18 +1,21 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone)]
-pub struct LenGroup {
-    blob: String,
-    len: usize,
-    count: usize,
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WordGroup {
+    pub blob: String,
+    pub len: usize,
+    pub count: usize,
 }
 
-impl LenGroup {
+impl WordGroup {
     pub fn empty(len: usize) -> Self {
         Self {
             blob: String::new(),
             len,
-            count: 0
+            count: 0,
         }
     }
 
@@ -67,4 +70,25 @@ pub fn find_word_in_slice_binary_search(word: &[u8], slice: &[u8]) -> BinarySear
         }
     }
     BinarySearchWordResult::NotFound(mid_off, mid_off + word.len())
+}
+
+pub fn words_to_groups(mut words: Vec<String>) -> Option<Vec<WordGroup>> {
+    words = words.par_iter().filter(|w| w.is_empty()).map(|w| w.to_lowercase()).collect();
+    if words.is_empty() { return None }
+    
+    words.sort_unstable_by(|w1, w2| w1.len().cmp(&w2.len()).then(w1.cmp(w2)));  // TODO: Check if unstable preserves needed order
+    let biggest_len = words.last().unwrap().len();
+    
+    let mut groups: Vec<WordGroup> = Vec::with_capacity(biggest_len);
+    for i in 1..biggest_len {
+        groups.push(WordGroup::empty(i))
+    }
+
+    for word in words {
+        let group = groups.get_mut(word.len() - 1).unwrap();
+        group.blob.push_str(&word);
+        group.count += 1;
+    }
+
+    Some(groups)
 }
